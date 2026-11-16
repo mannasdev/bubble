@@ -36,7 +36,7 @@ function run(mode, extra = {}) {
 }
 
 const BASE_ARGS = [
-  '-p', 'bigger',
+  '-p',
   '--restricted', '--safe-mode', '--strict-mcp-config',
   '--tools', 'Read,Glob,Grep,Edit,Write',
   '--permission-mode', 'acceptEdits', '--permission-prompts', 'none',
@@ -57,6 +57,18 @@ test('adds --resume when there is a session', async () => {
   assert.deepEqual(r.recorded().argv, [...BASE_ARGS, '--resume', 'abc']);
 });
 
+test('her words go in on stdin, so a message starting with a dash is not read as an option', async () => {
+  const text = '- make the heading bigger\n- and blue\n--add-dir=/Users';
+  const r = run('ok', { text });
+  await r.promise;
+  assert.equal(r.recorded().stdin, text);
+  assert.equal(r.recorded().argv.includes(text), false);
+});
+
+test('a resumed run that fails early for another reason is failed, not stale', async () => {
+  await assert.rejects(run('early-fail', { sessionId: 'abc' }).promise, (e) => e.kind === 'failed');
+});
+
 test('runs in the project folder', async () => {
   const r = run('ok');
   await r.promise;
@@ -67,9 +79,10 @@ test('settings deny secrets and config files', () => {
   assert.deepEqual(JSON.parse(SETTINGS_JSON), {
     permissions: {
       deny: [
-        'Read(./.env*)', 'Read(./.bubble/**)', 'Read(./.git/**)',
-        'Edit(./package.json)', 'Edit(./*lock*)', 'Edit(./*.config.*)', 'Edit(./.*)',
-        'Edit(./node_modules/**)', 'Edit(./scripts/**)',
+        'Read(./.env*)', 'Read(**/.env*)', 'Read(./.bubble/**)', 'Read(./.git/**)',
+        'Edit(./package.json)', 'Edit(**/package.json)', 'Edit(./*lock*)', 'Edit(**/*lock*)',
+        'Edit(./*.config.*)', 'Edit(**/*.config.*)', 'Edit(./.*)', 'Edit(**/.*)',
+        'Edit(./node_modules/**)', 'Edit(**/node_modules/**)', 'Edit(./scripts/**)',
       ],
     },
   });

@@ -5,10 +5,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const mode = process.env.FAKE_MODE || 'ok';
+const stdin = fs.readFileSync(0, 'utf8');
 if (process.env.FAKE_RECORD) {
   fs.writeFileSync(
     process.env.FAKE_RECORD,
-    JSON.stringify({ argv: process.argv.slice(2), env: Object.keys(process.env), cwd: process.cwd() }),
+    JSON.stringify({ argv: process.argv.slice(2), stdin, env: Object.keys(process.env), cwd: process.cwd() }),
   );
 }
 const say = (o) => process.stdout.write(JSON.stringify(o) + '\n');
@@ -27,6 +28,10 @@ if (mode === 'ok') {
   say({ type: 'system', subtype: 'init', session_id: 'sess-1' });
   say({ type: 'assistant', message: { content: [{ type: 'text', text: 'hm' }] } });
   say({ type: 'result', subtype: 'success', is_error: true, result: 'Not logged in', session_id: 'sess-1' });
+  process.exitCode = 1;
+} else if (mode === 'early-fail') {
+  process.stderr.write('Not logged in · Please run /login\n');
+  say({ type: 'result', subtype: 'success', is_error: true, result: 'Not logged in', session_id: 'x' });
   process.exitCode = 1;
 } else if (mode === 'stale') {
   process.stderr.write('No conversation found with session ID: old\n');

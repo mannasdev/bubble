@@ -7,13 +7,19 @@ export const SETTINGS_JSON = JSON.stringify({
   permissions: {
     deny: [
       'Read(./.env*)',
+      'Read(**/.env*)',
       'Read(./.bubble/**)',
       'Read(./.git/**)',
       'Edit(./package.json)',
+      'Edit(**/package.json)',
       'Edit(./*lock*)',
+      'Edit(**/*lock*)',
       'Edit(./*.config.*)',
+      'Edit(**/*.config.*)',
       'Edit(./.*)',
+      'Edit(**/.*)',
       'Edit(./node_modules/**)',
+      'Edit(**/node_modules/**)',
       'Edit(./scripts/**)',
     ],
   },
@@ -84,7 +90,7 @@ export function runClaude({
   lingerMs = 3000,
 }) {
   const args = [
-    '-p', buildPrompt(text, pointed),
+    '-p',
     '--restricted', '--safe-mode', '--strict-mcp-config',
     '--tools', 'Read,Glob,Grep,Edit,Write',
     '--permission-mode', 'acceptEdits', '--permission-prompts', 'none',
@@ -95,7 +101,11 @@ export function runClaude({
   if (sessionId) args.push('--resume', sessionId);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(claudeBin, args, { cwd: projectDir, env: cleanEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(claudeBin, args, { cwd: projectDir, env: cleanEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
+    // Her words go in on stdin, never as an argument: a message that starts
+    // with a dash would otherwise be read as an option.
+    child.stdin.on('error', () => {});
+    child.stdin.end(buildPrompt(text, pointed));
     const files = [];
     let result = null;
     let sawWork = false;
@@ -152,8 +162,13 @@ export function runClaude({
       if (timedOut) return settle(reject, new RunError('timeout'));
       const ok = result && !result.is_error && typeof result.result === 'string';
       if (ok) settle(resolve, { reply: result.result, sessionId: result.session_id, files });
-      else if (sessionId && !sawWork) settle(reject, new RunError('stale-session', stderr.trim()));
-      else settle(reject, new RunError('failed', (result?.result || stderr || `exit ${code}`).toString().trim()));
+      else {
+        const detail = (result?.result || stderr || `exit ${code}`).toString().trim();
+        // Only a missing conversation counts as stale; a login or network
+        // failure must not throw the conversation away.
+        const stale = sessionId && !sawWork && /no conversation found/i.test(`${stderr} ${result?.result ?? ''}`);
+        settle(reject, new RunError(stale ? 'stale-session' : 'failed', detail));
+      }
       if (child.exitCode === null && child.signalCode === null) {
         setTimeout(() => child.kill('SIGTERM'), lingerMs).unref();
       }

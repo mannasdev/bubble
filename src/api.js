@@ -104,6 +104,9 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath }) {
     }
     const text = typeof body?.text === 'string' ? body.text.trim() : '';
     if (!text || text.length > MAX_TEXT) return json(res, 400, { error: 'bad message' });
+    // A conversation that has been quiet too long ends here, before this
+    // message is saved and makes it look recent again.
+    if (state.session() === null) state.clearSession();
     const entry = add('visitor', text);
     queue.push({ text, pointed: cleanPointed(body.pointed) });
     json(res, 202, { id: entry.id });

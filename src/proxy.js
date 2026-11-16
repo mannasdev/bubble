@@ -31,6 +31,13 @@ function upstreamHeaders(req, targetPort) {
   return headers;
 }
 
+/** A redirect to the dev server's own address would send a visitor to their own machine. */
+function localRedirect(location, targetPort) {
+  const match = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]):(\d+)(\/.*)?$/i.exec(String(location));
+  if (!match || Number(match[2]) !== targetPort) return location;
+  return match[3] || '/';
+}
+
 function sendHtml(res, status, html, extra = {}) {
   const body = Buffer.from(html);
   res.writeHead(status, {
@@ -47,6 +54,7 @@ function forward(req, res, targetPort) {
     { host: 'localhost', port: targetPort, method: req.method, path: req.url, headers: upstreamHeaders(req, targetPort) },
     (upRes) => {
       const headers = { ...upRes.headers };
+      if (headers.location) headers.location = localRedirect(headers.location, targetPort);
       const type = String(headers['content-type'] || '');
       const isPlainHtml = type.startsWith('text/html') && !headers['content-encoding'];
       if (!isPlainHtml) {

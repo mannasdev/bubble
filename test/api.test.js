@@ -78,6 +78,20 @@ test('two quick messages run one at a time, in order, sharing the session', asyn
   assert.deepEqual(h.filter((e) => e.role === 'claude').map((e) => e.text), ['ok one', 'ok two']);
 });
 
+test('a conversation idle for more than 12 hours starts fresh', async (t) => {
+  const calls = [];
+  const a = await setup(async ({ sessionId }) => {
+    calls.push(sessionId);
+    return { reply: 'ok', sessionId: 'new', files: [] };
+  });
+  t.after(a.close);
+  a.state.setSession('old');
+  a.state.append({ id: '0', role: 'claude', text: 'earlier', at: new Date(Date.now() - 13 * 3600_000).toISOString() });
+  await a.send({ text: 'hi again' });
+  await a.settled(3);
+  assert.deepEqual(calls, [null]);
+});
+
 test('a stale session is retried once with a fresh one', async (t) => {
   const calls = [];
   const a = await setup(async ({ sessionId }) => {

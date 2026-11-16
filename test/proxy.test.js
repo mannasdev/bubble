@@ -41,6 +41,10 @@ before(async () => {
         'content-security-policy-report-only': "default-src 'none'",
       });
       res.end('<body><h1>é</h1></body>');
+    } else if (req.url.startsWith('/moved')) {
+      const to = new URL(req.url, 'http://x').searchParams.get('to').replace('PORT', upstreamPort);
+      res.writeHead(302, { location: to });
+      res.end();
     } else if (req.url === '/data') {
       res.writeHead(200, { 'content-type': 'application/json', 'content-security-policy': 'x' });
       res.end('{"a":"</body>"}');
@@ -116,6 +120,16 @@ test('upstream is asked for uncompressed responses', async () => {
 test('the access cookie is not passed on to the dev server', async () => {
   await get('/data', { cookie: `a=1; ${COOKIE}; b=2` });
   assert.equal(seen.at(-1).headers.cookie, 'a=1; b=2');
+});
+
+test('redirects that point at the dev server itself are made relative', async () => {
+  const to = (t) => get('/moved?to=' + encodeURIComponent(t), { cookie: COOKIE }).then((r) => r.headers.location);
+  assert.equal(await to('http://localhost:PORT/new?x=1'), '/new?x=1');
+  assert.equal(await to('http://127.0.0.1:PORT/'), '/');
+  assert.equal(await to('http://localhost:PORT'), '/');
+  assert.equal(await to('/already/relative'), '/already/relative');
+  assert.equal(await to('https://example.com/elsewhere'), 'https://example.com/elsewhere');
+  assert.equal(await to('http://localhost:1/other-port'), 'http://localhost:1/other-port');
 });
 
 test('no cookie is refused on pages', async () => {
