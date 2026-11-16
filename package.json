@@ -1,0 +1,10 @@
+{
+  "name": "bubble",
+  "version": "0.1.0",
+  "description": "Put a chat bubble on any local site that sends requests straight to Claude Code",
+  "type": "module",
+  "bin": { "bubble": "bin/bubble.js" },
+  "scripts": { "test": "node --test" },
+  "engines": { "node": ">=20" },
+  "private": true
+}
