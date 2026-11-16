@@ -12,7 +12,7 @@
     '@media (prefers-color-scheme:dark){.wrap{--bg:#1e1e1e;--fg:#f2f2f2;--muted:#a0a0a0;--line:#383838;--accent:#f2f2f2;--on-accent:#1a1a1a;--mine:#2c2c2c;--err:#ff8a80}}',
     'button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}',
     'button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
-    '.toggle{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--on-accent);font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,.25);display:grid;place-items:center}',
+    '.toggle{width:48px;height:48px;border-radius:50%;background:#1a1a1a;color:#fff;border:2px solid #fff;font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,.35);display:grid;place-items:center}',
     '.panel{width:min(320px,calc(100vw - 32px));max-height:60vh;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.2);overflow:hidden}',
     '.head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);font-weight:600}',
     '.close{width:28px;height:28px;border-radius:6px;font-size:18px;color:var(--muted)}',
@@ -136,7 +136,9 @@
   function setPointed(value) {
     pointed = value;
     chip.hidden = !value;
-    chipText.textContent = value ? 'Pointing at: ' + value.selector : '';
+    // She sees the words on the thing she picked; Claude gets the selector.
+    var name = value && value.text ? '\u201c' + value.text.slice(0, 40) + '\u201d' : value && value.selector;
+    chipText.textContent = value ? 'Pointing at: ' + name : '';
   }
 
   function setPointing(on) {

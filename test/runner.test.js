@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runClaude, buildPrompt, RunError, SETTINGS_JSON, SYSTEM_PROMPT } from '../src/runner.js';
 
-const FAKE = fileURLToPath(new URL('./fake-claude.js', import.meta.url));
+const FAKE = fileURLToPath(new URL('../fakes/claude.js', import.meta.url));
 const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-run-')));
 
 async function withEnv(vars, fn) {
