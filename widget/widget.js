@@ -32,6 +32,15 @@
     '.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}',
     '.btn.on{border-color:var(--accent);font-weight:600}',
     '.outline{position:fixed;pointer-events:none;border:2px solid #2f6fed;background:rgba(47,111,237,.12);border-radius:2px;z-index:2147483646}',
+    '.flash{animation:flash 1.4s ease-out forwards}',
+    '@keyframes flash{0%,40%{opacity:1}100%{opacity:0}}',
+    '.cursor{position:fixed;left:0;top:0;z-index:2147483646;pointer-events:none;display:flex;align-items:flex-start;opacity:0;transition:transform .8s cubic-bezier(.2,.8,.2,1),opacity .3s}',
+    '.cursor.on{opacity:1}',
+    '.arrow{width:18px;height:22px;background:#2f6fed;clip-path:polygon(0 0,0 78%,24% 60%,40% 100%,56% 93%,40% 55%,72% 55%)}',
+    '.tag{margin:16px 0 0 -4px;background:#2f6fed;color:#fff;font-size:11px;font-weight:600;line-height:1;padding:4px 7px;border-radius:9px;white-space:nowrap}',
+    '.cursor.busy .arrow{animation:bob 1s ease-in-out infinite}',
+    '@keyframes bob{50%{transform:translateY(-4px)}}',
+    '@media (prefers-reduced-motion:reduce){.cursor{transition:opacity .3s}.cursor.busy .arrow{animation:none}}',
     '[hidden]{display:none!important}',
   ].join('\n');
 
@@ -60,12 +69,38 @@
     return parts.join(' > ');
   }
 
+  // An exact route from <body>, so the same element can be found again after
+  // the page reloads or the framework swaps it for a new copy.
+  function pathTo(node) {
+    var parts = [];
+    while (node && node.parentElement && node.tagName !== 'BODY' && node.tagName !== 'HTML') {
+      var siblings = node.parentElement.children;
+      var index = 0;
+      for (var i = 0; i < siblings.length; i++) {
+        if (siblings[i].tagName === node.tagName) index++;
+        if (siblings[i] === node) break;
+      }
+      parts.unshift(node.tagName.toLowerCase() + ':nth-of-type(' + index + ')');
+      node = node.parentElement;
+    }
+    return ['body'].concat(parts).join(' > ');
+  }
+
+  // Keep the fake pointer on screen, a little in from the edges.
+  function clampPoint(x, y, width, height) {
+    var edge = 12;
+    return {
+      x: Math.min(Math.max(x, edge), width - edge),
+      y: Math.min(Math.max(y, edge), height - edge),
+    };
+  }
+
   // Message text always goes in as text, never as markup.
   function renderEntry(entry) {
     return el('div', 'msg ' + entry.role, entry.text);
   }
 
-  window.__bubble = { describe: describe, renderEntry: renderEntry };
+  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint };
 
   var host = el('div');
   host.id = '__bubble_root';
@@ -102,13 +137,114 @@
   form.append(input, row);
   panel.append(head, list, statusLine, chip, form);
   var outline = el('div', 'outline');
+  var flashBox = el('div', 'outline');
+  var cursor = el('div', 'cursor');
+  cursor.append(el('div', 'arrow'), el('div', 'tag', 'Claude'));
   wrap.append(toggle, panel);
-  root.append(wrap, outline);
+  root.append(wrap, outline, flashBox, cursor);
   document.documentElement.appendChild(host);
 
   var pointed = null;
+  var pointedPath = null; // where she pointed, for the next message
+  var workPath = null; // where she pointed, for the message being worked on
+  var changedPath = null; // the last thing seen changing on the page
+  var working = false;
+  var observer = null;
   var pointing = false;
   var count = 0;
+
+  function find(path) {
+    try {
+      return path && document.querySelector ? document.querySelector(path) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function placeCursor(x, y) {
+    var point = clampPoint(x, y, window.innerWidth, window.innerHeight);
+    cursor.style.transform = 'translate(' + point.x + 'px,' + point.y + 'px)';
+  }
+
+  function cursorTo(node) {
+    var box = node.getBoundingClientRect();
+    placeCursor(box.left + Math.min(box.width / 2, 120), box.top + Math.min(box.height / 2, 40));
+  }
+
+  function flash(node) {
+    var box = node.getBoundingClientRect();
+    flashBox.style.top = box.top + 'px';
+    flashBox.style.left = box.left + 'px';
+    flashBox.style.width = box.width + 'px';
+    flashBox.style.height = box.height + 'px';
+    flashBox.hidden = false;
+    flashBox.classList.remove('flash');
+    void flashBox.offsetWidth; // restart the fade
+    flashBox.classList.add('flash');
+  }
+
+  function onScreen(node) {
+    var box = node.getBoundingClientRect();
+    return box.bottom > 0 && box.top < window.innerHeight;
+  }
+
+  // The page changed under us while Claude is working: show where.
+  function sawChanges(mutations) {
+    var node = null;
+    for (var i = mutations.length - 1; i >= 0 && !node; i--) {
+      var target = mutations[i].target;
+      if (target && target.nodeType === 3) target = target.parentElement;
+      if (!target || target.nodeType !== 1 || target === host || target === document.body) continue;
+      if (/^(SCRIPT|STYLE|LINK|HEAD|META)$/.test(target.tagName)) continue;
+      node = target;
+    }
+    if (!node) return;
+    changedPath = pathTo(node);
+    if (onScreen(node)) {
+      cursorTo(node);
+      flash(node);
+    }
+  }
+
+  function startWork() {
+    working = true;
+    changedPath = null;
+    cursor.classList.add('on', 'busy');
+    var target = find(workPath);
+    if (target && onScreen(target)) cursorTo(target);
+    else placeCursor(window.innerWidth * 0.5, window.innerHeight * 0.4);
+    if (window.MutationObserver && document.body) {
+      observer = new window.MutationObserver(sawChanges);
+      observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+    }
+  }
+
+  function stopWork() {
+    working = false;
+    if (observer) observer.disconnect();
+    observer = null;
+    cursor.classList.remove('busy');
+  }
+
+  function hideCursor() {
+    cursor.classList.remove('on', 'busy');
+  }
+
+  // After the page reloads with her change in it, point at what changed.
+  function showAfterReload() {
+    var path = null;
+    try {
+      path = window.sessionStorage.getItem('bubble_flash');
+      window.sessionStorage.setItem('bubble_flash', '');
+    } catch (e) {}
+    var node = find(path);
+    if (!node) return;
+    if (!onScreen(node) && node.scrollIntoView) node.scrollIntoView({ block: 'center' });
+    cursor.classList.add('on');
+    cursorTo(node);
+    flash(node);
+    window.setTimeout(hideCursor, 2200);
+  }
 
   function setOpen(open) {
     panel.hidden = !open;
@@ -135,6 +271,7 @@
 
   function setPointed(value) {
     pointed = value;
+    if (!value) pointedPath = null;
     chip.hidden = !value;
     // She sees the words on the thing she picked; Claude gets the selector.
     var name = value && value.text ? '\u201c' + value.text.slice(0, 40) + '\u201d' : value && value.selector;
@@ -160,6 +297,8 @@
     var body = { text: text };
     if (pointed) body.pointed = pointed;
     sendBtn.disabled = true;
+    // Set before sending: the "working" signal can arrive before the reply.
+    if (!working) workPath = pointedPath;
     window
       .fetch('/__bubble/send', {
         method: 'POST',
@@ -224,6 +363,7 @@
       event.preventDefault();
       event.stopPropagation();
       var target = event.target;
+      pointedPath = pathTo(target);
       setPointed({
         selector: describe(target),
         text: String(target.innerText || target.textContent || '').trim().slice(0, 120),
@@ -254,24 +394,41 @@
   source.addEventListener('entry', function (event) {
     var entry = JSON.parse(event.data);
     show(renderEntry(entry));
+    if (entry.role === 'visitor') return;
     // Show the change even when the project has no live reload of its own.
     if (entry.role === 'claude' && entry.files && entry.files.length) {
+      try {
+        window.sessionStorage.setItem('bubble_flash', changedPath || workPath || '');
+      } catch (e) {}
       window.setTimeout(function () {
         window.location.reload();
       }, 1500);
+    } else {
+      hideCursor();
     }
+    workPath = null;
   });
   source.addEventListener('status', function (event) {
     var text = JSON.parse(event.data);
     statusLine.textContent = text;
     statusLine.hidden = !text;
     scrollDown();
+    if (text && !working) startWork();
+    if (!text && working) stopWork();
   });
 
   list.appendChild(empty);
   statusLine.hidden = true;
   setPointed(null);
   outline.hidden = true;
+  flashBox.hidden = true;
+  // Park the pointer by the bubble without animating, so its first glide
+  // starts from there and not from the top-left corner.
+  cursor.style.transition = 'none';
+  placeCursor(window.innerWidth - 60, window.innerHeight - 60);
+  void cursor.offsetWidth;
+  cursor.style.transition = '';
+  showAfterReload();
   var wasOpen = false;
   try {
     wasOpen = window.sessionStorage.getItem('bubble_open') === '1';

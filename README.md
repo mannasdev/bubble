@@ -40,6 +40,14 @@ each time bubble starts. For a fixed one:
 
 Bubble creates a tunnel named `bubble` and points that name at it.
 
+## What she sees while Claude works
+
+A small pointer labelled "Claude" glides to the thing she pointed at (or the
+middle of the page), a status line says what is happening, and whatever
+changes on the page is briefly outlined. When Claude is done the page
+refreshes and the pointer lands on what changed. The pointer is a visual
+effect: Claude edits files, it does not click on the page.
+
 ## What she can and cannot ask for
 
 She can ask for anything that is a change to the project's files: text,

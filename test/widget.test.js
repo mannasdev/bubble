@@ -149,3 +149,30 @@ test('does nothing inside an iframe', () => {
   assert.equal(html.children.length, 0);
   assert.equal(w.__bubble, undefined);
 });
+
+test('pathTo gives an exact route from the body that survives a reload', () => {
+  const { w, body } = boot();
+  const main = body.appendChild(new El('main'));
+  main.appendChild(new El('p'));
+  const section = main.appendChild(new El('section'));
+  section.appendChild(new El('button'));
+  section.appendChild(new El('p'));
+  const second = section.appendChild(new El('button'));
+  assert.equal(
+    w.__bubble.pathTo(second),
+    'body > main:nth-of-type(1) > section:nth-of-type(1) > button:nth-of-type(2)',
+  );
+  assert.equal(w.__bubble.pathTo(main), 'body > main:nth-of-type(1)');
+  assert.equal(w.__bubble.pathTo(body), 'body');
+});
+
+test('clampPoint keeps the pointer inside the visible page', () => {
+  const { w } = boot();
+  const c = (x, y) => {
+    const p = w.__bubble.clampPoint(x, y, 800, 600);
+    return [p.x, p.y];
+  };
+  assert.deepEqual(c(400, 300), [400, 300]);
+  assert.deepEqual(c(-50, 9000), [12, 588]);
+  assert.deepEqual(c(5000, -1), [788, 12]);
+});
