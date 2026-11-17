@@ -208,3 +208,18 @@ test('dev server down gives a plain 502 and the proxy keeps working', async () =
     lonely.close();
   }
 });
+
+test('a local-only proxy hands out the cookie without Secure', async () => {
+  const local = createProxy({ targetPort: upstreamPort, key: KEY, handleApi() {}, secureCookie: false });
+  const port = await listen(local);
+  const saved = base;
+  base = `http://127.0.0.1:${port}`;
+  try {
+    const r = await get(`/page?k=${KEY}`);
+    assert.equal(r.status, 302);
+    assert.doesNotMatch(r.headers['set-cookie'][0], /Secure/);
+  } finally {
+    base = saved;
+    local.close();
+  }
+});

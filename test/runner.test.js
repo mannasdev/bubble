@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runClaude, buildPrompt, RunError, SETTINGS_JSON, SYSTEM_PROMPT } from '../src/runner.js';
+import { runClaude, buildPrompt, RunError, SETTINGS_JSON, SYSTEM_PROMPT, OWNER_PROMPT } from '../src/runner.js';
 
 const FAKE = fileURLToPath(new URL('../fakes/claude.js', import.meta.url));
 const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-run-')));
@@ -154,4 +154,14 @@ test('answers as soon as the result arrives even if claude stays alive, then sto
   const pid = Number(fs.readFileSync(path.join(r.projectDir, 'pid'), 'utf8'));
   await new Promise((done) => setTimeout(done, 600));
   assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+});
+
+test('when the owner is the one typing, claude is told so', async () => {
+  const r = run('ok', { owner: true });
+  await r.promise;
+  const argv = r.recorded().argv;
+  const prompt = argv[argv.indexOf('--append-system-prompt') + 1];
+  assert.equal(prompt, OWNER_PROMPT);
+  assert.notEqual(OWNER_PROMPT, SYSTEM_PROMPT);
+  assert.doesNotMatch(OWNER_PROMPT, /ask Mannas|designer/);
 });

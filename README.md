@@ -28,7 +28,7 @@ Stop with Ctrl+C.
 | --- | --- |
 | `--host preview.example.com` | Use a fixed address on your Cloudflare domain. Remembered per project. |
 | `--fresh` | Start a new conversation with Claude. |
-| `--no-tunnel` | Local link only, for trying it yourself. Use Chrome or Firefox; Safari will not keep the access cookie on a plain `http://localhost` address. |
+| `--local` | Just for you: no public link. Opens the page with the bubble in your browser, so you can tell Claude Code things from the page yourself. |
 
 ### A link that never changes
 

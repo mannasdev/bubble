@@ -33,6 +33,15 @@ export const SYSTEM_PROMPT =
   'If her request is unclear, ask one short question instead of guessing. ' +
   'You cannot run commands, install packages or change configuration; if a request needs that, tell her to ask Mannas.';
 
+// Used in local-only mode, where the person typing is the project's owner.
+export const OWNER_PROMPT =
+  'You are making changes to a website for its developer, who is looking at the live page and typing into a small chat box on it. ' +
+  'Make the change they ask for by editing files in this project. ' +
+  'Reply in one or two plain sentences; name a file only when it helps. ' +
+  'The page refreshes by itself after you change something, so never tell them to refresh. ' +
+  'If the request is unclear, ask one short question instead of guessing. ' +
+  'From this chat box you cannot run commands, install packages or change configuration; if a request needs that, say so and say what to run.';
+
 const LOOKING = new Set(['Read', 'Glob', 'Grep']);
 const CHANGING = new Set(['Edit', 'Write']);
 
@@ -85,6 +94,7 @@ export function runClaude({
   pointed,
   sessionId,
   onStatus,
+  owner = false,
   claudeBin = 'claude',
   timeoutMs = 300000,
   lingerMs = 3000,
@@ -95,7 +105,7 @@ export function runClaude({
     '--tools', 'Read,Glob,Grep,Edit,Write',
     '--permission-mode', 'acceptEdits', '--permission-prompts', 'none',
     '--settings', SETTINGS_JSON,
-    '--append-system-prompt', SYSTEM_PROMPT,
+    '--append-system-prompt', owner ? OWNER_PROMPT : SYSTEM_PROMPT,
     '--output-format', 'stream-json', '--verbose',
   ];
   if (sessionId) args.push('--resume', sessionId);

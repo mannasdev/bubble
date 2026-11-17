@@ -40,3 +40,8 @@ test('wrong cookie is refused', () => {
 test('denied page tells the visitor who to ask', () => {
   assert.match(DENIED_HTML, /This preview is private\. Ask Mannas for the link\./);
 });
+
+test('a local-only link sets a cookie that plain http keeps, in Safari too', () => {
+  const r = checkAccess(req(`/?k=${KEY}`), KEY, { secure: false });
+  assert.equal(r.setCookie, `bubble_k=${KEY}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`);
+});

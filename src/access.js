@@ -28,14 +28,16 @@ function cookieValue(header, name) {
  * Decide whether a request may pass. The right ?k= sets the cookie and asks
  * for a redirect to the same address without the key in it.
  */
-export function checkAccess(req, key) {
+export function checkAccess(req, key, { secure = true } = {}) {
   const url = new URL(req.url, 'http://x');
   const given = url.searchParams.get('k');
   if (given !== null && same(given, key)) {
     url.searchParams.delete('k');
     return {
       ok: true,
-      setCookie: `${COOKIE}=${key}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`,
+      // Secure cookies are dropped on plain http://localhost by some browsers,
+      // so a local-only link leaves the flag off.
+      setCookie: `${COOKIE}=${key}; HttpOnly; ${secure ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=2592000`,
       redirect: url.pathname + url.search,
     };
   }

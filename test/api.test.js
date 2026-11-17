@@ -221,3 +221,27 @@ test('a listener gets history first, then new entries in order, then an empty st
   const rest = events.slice(2).map(([n, d]) => (n === 'entry' ? `entry:${d.role}:${d.text}` : `status:${d}`));
   assert.deepEqual(rest, ['entry:visitor:now', 'status:Thinking…', 'status:Making the change…', 'entry:claude:done', 'status:']);
 });
+
+test('local-only mode tells the run that the owner is typing', async (t) => {
+  let got;
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-api-'));
+  const state = openState(projectDir);
+  const handler = createApi({
+    state, projectDir, widgetPath: '/dev/null', owner: true,
+    run: async (job) => {
+      got = job.owner;
+      return { reply: 'ok', sessionId: 's', files: [] };
+    },
+  });
+  const server = http.createServer(handler);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await fetch(`http://127.0.0.1:${server.address().port}/__bubble/send`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'hi' }),
+  });
+  for (let i = 0; i < 100 && state.history().length < 2; i++) await sleep(10);
+  assert.equal(got, true);
+});

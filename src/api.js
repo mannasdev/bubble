@@ -39,7 +39,7 @@ function cleanPointed(p) {
  * Everything under /__bubble/: the widget file, the live event stream, and
  * the endpoint that takes a message and queues it for Claude.
  */
-export function createApi({ state, projectDir, run = runClaude, widgetPath }) {
+export function createApi({ state, projectDir, run = runClaude, widgetPath, owner = false }) {
   const listeners = new Set();
   const queue = [];
   let working = false;
@@ -62,7 +62,7 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath }) {
 
   async function runJob(job) {
     const attempt = (sessionId) =>
-      run({ projectDir, text: job.text, pointed: job.pointed, sessionId, onStatus: setStatus });
+      run({ projectDir, text: job.text, pointed: job.pointed, sessionId, onStatus: setStatus, owner });
     try {
       let result;
       try {

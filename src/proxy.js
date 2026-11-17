@@ -104,9 +104,9 @@ function forwardUpgrade(req, socket, head, targetPort) {
  * The server visitors reach. Checks the access key, hands /__bubble/ to the
  * api, and passes everything else to the project's own dev server.
  */
-export function createProxy({ targetPort, key, handleApi }) {
+export function createProxy({ targetPort, key, handleApi, secureCookie = true }) {
   const server = http.createServer((req, res) => {
-    const access = checkAccess(req, key);
+    const access = checkAccess(req, key, { secure: secureCookie });
     if (!access.ok) return sendHtml(res, 403, DENIED_HTML);
     if (access.redirect) {
       res.writeHead(302, { location: access.redirect, 'set-cookie': access.setCookie, 'cache-control': 'no-store' });

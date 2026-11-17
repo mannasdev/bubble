@@ -1,16 +1,16 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { openState } from './state.js';
 import { createProxy } from './proxy.js';
 import { createApi } from './api.js';
 import { startTunnel } from './tunnel.js';
 
-export const USAGE = `Usage: bubble <port> [--host name] [--fresh] [--no-tunnel]
+export const USAGE = `Usage: bubble <port> [--local] [--host name] [--fresh]
 
   <port>         the port your site is running on, for example 3000
   --host name    use a fixed address on your Cloudflare domain, for example preview.example.com
   --fresh        start a new conversation with Claude
-  --no-tunnel    only make a local link, for trying it on this computer
+  --local        just for you: no public link, opens the page in your browser
 `;
 
 export class UsageError extends Error {}
@@ -20,7 +20,7 @@ export function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--fresh') out.fresh = true;
-    else if (arg === '--no-tunnel') out.noTunnel = true;
+    else if (arg === '--local' || arg === '--no-tunnel') out.noTunnel = true;
     else if (arg === '--host') {
       const value = argv[++i];
       if (!value || !/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(value)) {
@@ -56,7 +56,7 @@ export async function main(argv) {
     return 1;
   }
   if (!args.noTunnel && !installed('cloudflared')) {
-    console.error('cloudflared is not installed. Install it with `brew install cloudflared`, or use --no-tunnel.');
+    console.error('cloudflared is not installed. Install it with `brew install cloudflared`, or use --local.');
     return 1;
   }
 
@@ -69,14 +69,15 @@ export async function main(argv) {
     state,
     projectDir,
     widgetPath: fileURLToPath(new URL('../widget/widget.js', import.meta.url)),
+    owner: args.noTunnel,
   });
-  const server = createProxy({ targetPort: args.port, key: state.key, handleApi });
+  const server = createProxy({ targetPort: args.port, key: state.key, handleApi, secureCookie: !args.noTunnel });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const localPort = server.address().port;
 
   let base = `http://localhost:${localPort}`;
   let tunnel = null;
-  let note = 'This link only works on this computer.';
+  let note = 'Opened in your browser. This link only works on this computer.';
   if (!args.noTunnel) {
     try {
       tunnel = await startTunnel({ localPort, host: state.host ?? undefined });
@@ -92,6 +93,9 @@ export async function main(argv) {
   }
 
   console.log(`\n  ${base}/?k=${state.key}\n\n  ${note} Ctrl+C to stop.\n`);
+  if (args.noTunnel && process.platform === 'darwin' && !process.env.BUBBLE_NO_OPEN) {
+    spawn('open', [`${base}/?k=${state.key}`], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+  }
 
   await new Promise((resolve) => {
     const stop = () => {

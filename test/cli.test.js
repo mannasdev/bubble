@@ -25,3 +25,7 @@ test('an unknown option, a missing host value and a host with a scheme are usage
   assert.throws(() => parseArgs(['3000', '--host']), UsageError);
   assert.throws(() => parseArgs(['3000', '--host', 'https://p.example.com']), UsageError);
 });
+
+test('--local is the friendly name for a link that only works on this computer', () => {
+  assert.deepEqual(parseArgs(['3000', '--local']), { port: 3000, host: undefined, fresh: false, noTunnel: true });
+});
