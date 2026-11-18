@@ -4,45 +4,165 @@
   if (window.top !== window.self) return; // not inside iframes
   if (window.__bubble) return; // only once per page
 
+  var EASE = 'cubic-bezier(.2,.9,.3,1)';
+  var SPRING = 'cubic-bezier(.3,1.5,.5,1)';
   var CSS = [
     ':host{all:initial}',
     '*{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}',
-    '.wrap{--bg:#fff;--fg:#1a1a1a;--muted:#6b6b6b;--line:#e3e3e3;--accent:#1a1a1a;--on-accent:#fff;--mine:#f1f1f1;--err:#b3261e;',
+    // Tokens. The panel is frosted glass so it sits on any site; one accent colour.
+    '.wrap,.outline,.cursor{--accent:#2f6fed;--accent-soft:rgba(47,111,237,.14);--accent-line:rgba(47,111,237,.4)}',
+    '.wrap{--bg:rgba(255,255,255,.88);--field:rgba(255,255,255,.9);--fg:#16161a;--muted:#6e6e78;--line:rgba(0,0,0,.09);--mine:rgba(0,0,0,.055);--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
     'position:fixed;right:16px;bottom:16px;z-index:2147483647;font-size:14px;line-height:1.4;color:var(--fg)}',
-    '@media (prefers-color-scheme:dark){.wrap{--bg:#1e1e1e;--fg:#f2f2f2;--muted:#a0a0a0;--line:#383838;--accent:#f2f2f2;--on-accent:#1a1a1a;--mine:#2c2c2c;--err:#ff8a80}}',
+    '@media (prefers-color-scheme:dark){.wrap,.outline,.cursor{--accent:#5b8cff;--accent-soft:rgba(91,140,255,.18);--accent-line:rgba(91,140,255,.5)}',
+    '.wrap{--bg:rgba(24,24,28,.86);--field:rgba(255,255,255,.05);--fg:#f3f3f6;--muted:#9a9aa6;--line:rgba(255,255,255,.11);--mine:rgba(255,255,255,.08);--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
     'button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}',
-    'button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
-    '.toggle{width:48px;height:48px;border-radius:50%;background:#1a1a1a;color:#fff;border:2px solid #fff;font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,.35);display:grid;place-items:center}',
-    '.panel{width:min(320px,calc(100vw - 32px));max-height:60vh;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.2);overflow:hidden}',
-    '.head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);font-weight:600}',
-    '.close{width:28px;height:28px;border-radius:6px;font-size:18px;color:var(--muted)}',
-    '.list{flex:1;min-height:60px;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}',
-    '.empty{color:var(--muted)}',
-    '.msg{max-width:88%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}',
-    '.msg.visitor{align-self:flex-end;background:var(--mine)}',
-    '.msg.claude{align-self:flex-start;border:1px solid var(--line)}',
-    '.msg.error{align-self:flex-start;color:var(--err);border:1px solid var(--err)}',
-    '.status{padding:0 12px 8px;color:var(--muted);font-size:13px}',
-    '.chip{margin:0 12px 8px;padding:4px 8px;border-radius:6px;background:var(--mine);font-size:12px;display:flex;gap:8px;align-items:center;justify-content:space-between}',
-    '.chip span{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
-    '.form{border-top:1px solid var(--line);padding:8px 12px 12px;display:flex;flex-direction:column;gap:8px}',
-    'textarea{width:100%;min-height:56px;max-height:140px;resize:none;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;color:var(--fg);background:var(--bg)}',
-    '.row{display:flex;justify-content:space-between;gap:8px}',
-    '.btn{padding:6px 12px;border-radius:8px;border:1px solid var(--line)}',
-    '.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}',
-    '.btn.on{border-color:var(--accent);font-weight:600}',
-    '.outline{position:fixed;pointer-events:none;border:2px solid #2f6fed;background:rgba(47,111,237,.12);border-radius:2px;z-index:2147483646}',
-    '.flash{animation:flash 1.4s ease-out forwards}',
-    '@keyframes flash{0%,40%{opacity:1}100%{opacity:0}}',
-    '.cursor{position:fixed;left:0;top:0;z-index:2147483646;pointer-events:none;display:flex;align-items:flex-start;opacity:0;transition:transform .8s cubic-bezier(.2,.8,.2,1),opacity .3s}',
+    'button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
+    'svg{display:block;flex:none}',
+
+    // Launcher: a pill that lifts on hover and has a slow breathing ring.
+    '.toggle{position:relative;height:44px;padding:0 16px 0 13px;border-radius:22px;background:#16161a;color:#fff;border:1px solid rgba(255,255,255,.22);font-size:13px;font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px -6px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.25);transition:transform .28s ' + SPRING + ',opacity .18s ease,box-shadow .2s ease}',
+    '.toggle::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:2px solid var(--accent);opacity:0;animation:breathe 3.2s ease-out infinite;pointer-events:none}',
+    '@keyframes breathe{0%{opacity:.55;transform:scale(1)}60%,100%{opacity:0;transform:scale(1.14,1.4)}}',
+    '.toggle:hover{transform:translateY(-2px);box-shadow:0 14px 30px -8px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.25)}',
+    '.toggle:active{transform:scale(.95)}',
+    '.toggle .ico{transition:transform .4s ' + SPRING + '}',
+    '.toggle:hover .ico{transform:rotate(-12deg) scale(1.1)}',
+    '.spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite;display:none}',
+    '@keyframes spin{to{transform:rotate(360deg)}}',
+    '.working .toggle .spin{display:block}',
+    '.working .toggle .ico{display:none}',
+    '.working .toggle::after{animation-duration:1.4s}',
+    '.badge{position:absolute;top:-3px;right:-3px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #fff;transform:scale(0);transition:transform .3s ' + SPRING + '}',
+    '.unread .badge{transform:scale(1)}',
+    '.open .toggle{opacity:0;transform:scale(.6);pointer-events:none}',
+
+    // Panel: springs out of the corner the launcher sits in.
+    '.panel{position:absolute;right:0;bottom:0;width:min(344px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 32px));display:flex;flex-direction:column;background:var(--bg);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border:1px solid var(--line);border-radius:18px;box-shadow:0 28px 70px -14px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.1);overflow:hidden;',
+    'transform-origin:100% 100%;opacity:0;transform:scale(.86) translateY(14px);pointer-events:none;visibility:hidden;transition:transform .2s ease,opacity .16s ease,visibility 0s linear .2s}',
+    '.open .panel{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:transform .36s ' + SPRING + ',opacity .18s ease,visibility 0s}',
+    '.head{display:flex;align-items:center;gap:9px;padding:13px 10px 11px 15px;border-bottom:1px solid var(--line)}',
+    '.live{width:8px;height:8px;border-radius:50%;background:#2bb673;flex:none;transition:background .3s}',
+    '.working .live{background:var(--accent);animation:pulse 1.1s ease-in-out infinite}',
+    '@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--accent-line)}50%{box-shadow:0 0 0 5px rgba(0,0,0,0)}}',
+    '.title{flex:1;font-weight:650;font-size:13.5px;letter-spacing:.005em}',
+    '.close{width:28px;height:28px;border-radius:50%;color:var(--muted);display:grid;place-items:center;transition:background .15s,color .15s,transform .3s ' + SPRING + '}',
+    '.close:hover{background:var(--mine);color:var(--fg);transform:rotate(90deg)}',
+
+    '.list{flex:1;min-height:72px;overflow-y:auto;padding:14px 12px 8px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin}',
+    '.empty{margin:auto;padding:8px 14px 14px;text-align:center;color:var(--muted);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:8px;animation:rise .5s ' + EASE + ' both}',
+    '.empty .ring{width:36px;height:36px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;animation:float 3s ease-in-out infinite}',
+    '@keyframes float{50%{transform:translateY(-4px)}}',
+    '.msg{max-width:86%;padding:8px 12px;white-space:pre-wrap;overflow-wrap:anywhere}',
+    '.msg.visitor{align-self:flex-end;background:var(--accent);color:#fff;border-radius:16px 16px 5px 16px;transform-origin:100% 100%}',
+    '.msg.claude{align-self:flex-start;background:var(--mine);border-radius:16px 16px 16px 5px;transform-origin:0 100%}',
+    '.msg.error{align-self:flex-start;background:var(--err-soft);color:var(--err);border:1px solid var(--err);border-radius:16px 16px 16px 5px;transform-origin:0 100%}',
+    '.msg.new{animation:rise .38s ' + SPRING + ' both}',
+    '.msg.error.new{animation:rise .38s ' + SPRING + ' both,shake .4s .3s}',
+    '@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.94)}}',
+    '@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}',
+
+    // "Claude is typing": three bouncing dots and a shimmer across the words.
+    '.status{display:flex;align-items:center;gap:8px;margin:0 12px 10px;padding:8px 12px;align-self:flex-start;background:var(--mine);border-radius:16px 16px 16px 5px;font-size:13px;animation:rise .3s ' + EASE + ' both}',
+    '.dots{display:flex;gap:3px}',
+    '.dots i{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:hop 1.1s ease-in-out infinite}',
+    '.dots i:nth-child(2){animation-delay:.14s}',
+    '.dots i:nth-child(3){animation-delay:.28s}',
+    '@keyframes hop{0%,60%,100%{transform:none;opacity:.45}30%{transform:translateY(-4px);opacity:1}}',
+    '.what{background:linear-gradient(90deg,var(--muted) 35%,var(--fg) 50%,var(--muted) 65%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 1.8s linear infinite}',
+    '@keyframes shimmer{from{background-position:120% 0}to{background-position:-100% 0}}',
+
+    '.chip{margin:0 12px 8px;padding:6px 6px 6px 10px;border-radius:11px;background:var(--accent-soft);border:1px solid var(--accent-line);font-size:12px;display:flex;gap:8px;align-items:center;animation:rise .28s ' + SPRING + ' both}',
+    '.chip .ico{color:var(--accent)}',
+    '.chip span{flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
+    '.chip button{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:var(--muted);transition:background .15s,color .15s}',
+    '.chip button:hover{background:var(--mine);color:var(--fg)}',
+
+    '.form{padding:0 12px 12px}',
+    '.composer{border:1px solid var(--line);border-radius:15px;background:var(--field);transition:border-color .18s,box-shadow .18s}',
+    '.composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}',
+    'textarea{display:block;width:100%;height:42px;max-height:132px;resize:none;border:0;outline:0;background:none;padding:11px 12px 2px;font:inherit;color:var(--fg)}',
+    'textarea::placeholder{color:var(--muted)}',
+    '.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px}',
+    '.point{display:flex;align-items:center;gap:6px;padding:6px 10px 6px 8px;border-radius:10px;font-size:12.5px;font-weight:550;color:var(--muted);transition:background .15s,color .15s,transform .15s}',
+    '.point:hover{background:var(--mine);color:var(--fg)}',
+    '.point:active{transform:scale(.96)}',
+    '.point.on{background:var(--accent-soft);color:var(--accent);animation:nudge 1.2s ease-in-out infinite}',
+    '@keyframes nudge{50%{box-shadow:0 0 0 4px var(--accent-soft)}}',
+    '.send{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;overflow:hidden;transition:transform .2s ' + SPRING + ',opacity .2s,filter .2s}',
+    '.send:hover{transform:scale(1.08)}',
+    '.send:active{transform:scale(.9)}',
+    '.send:disabled{opacity:.32;filter:grayscale(1);cursor:default;transform:none}',
+    '.send.sent svg{animation:fly .45s ' + EASE + '}',
+    '@keyframes fly{45%{transform:translateY(-26px);opacity:0}46%{transform:translateY(26px);opacity:0}100%{transform:none;opacity:1}}',
+
+    // On the page: the hover outline, the changed-here glow, and Claude's pointer.
+    '.outline{position:fixed;pointer-events:none;border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:5px;z-index:2147483646;transition:top .09s ease-out,left .09s ease-out,width .09s ease-out,height .09s ease-out}',
+    '.outline b{position:absolute;left:-1.5px;bottom:100%;margin-bottom:3px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;line-height:1;padding:4px 7px;border-radius:6px;white-space:nowrap}',
+    '.outline.low b{bottom:auto;top:4px;left:4px;margin:0}',
+    '.glow{transition:none;background:none;border-width:2px}',
+    '.flash{animation:flash 1.7s ease-out forwards}',
+    '@keyframes flash{0%{opacity:0;transform:scale(1.04)}14%{opacity:1;transform:none;box-shadow:0 0 0 0 var(--accent-line)}55%{opacity:1;box-shadow:0 0 0 12px rgba(0,0,0,0)}100%{opacity:0;box-shadow:0 0 0 12px rgba(0,0,0,0)}}',
+    '.cursor{position:fixed;left:0;top:0;z-index:2147483646;pointer-events:none;display:flex;align-items:flex-start;color:var(--accent);opacity:0;transition:transform .8s cubic-bezier(.2,.8,.2,1),opacity .3s}',
     '.cursor.on{opacity:1}',
-    '.arrow{width:18px;height:22px;background:#2f6fed;clip-path:polygon(0 0,0 78%,24% 60%,40% 100%,56% 93%,40% 55%,72% 55%)}',
-    '.tag{margin:16px 0 0 -4px;background:#2f6fed;color:#fff;font-size:11px;font-weight:600;line-height:1;padding:4px 7px;border-radius:9px;white-space:nowrap}',
+    '.arrow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}',
+    '.arrow.plain{width:18px;height:22px;background:var(--accent);clip-path:polygon(0 0,0 78%,24% 60%,40% 100%,56% 93%,40% 55%,72% 55%);filter:none}',
+    '.tag{margin:17px 0 0 -3px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;line-height:1;padding:5px 8px;border-radius:3px 10px 10px 10px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.2)}',
+    '.tag.pop{animation:pop .4s ' + SPRING + '}',
+    '@keyframes pop{from{transform:scale(.6)}}',
     '.cursor.busy .arrow{animation:bob 1s ease-in-out infinite}',
     '@keyframes bob{50%{transform:translateY(-4px)}}',
-    '@media (prefers-reduced-motion:reduce){.cursor{transition:opacity .3s}.cursor.busy .arrow{animation:none}}',
+    '.ping{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border-radius:50%;border:2px solid var(--accent);opacity:0}',
+    '.ping.go{animation:ping .7s ease-out}',
+    '@keyframes ping{from{opacity:.9;transform:scale(.2)}to{opacity:0;transform:scale(1.5)}}',
+
+    '@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}',
     '[hidden]{display:none!important}',
   ].join('\n');
+
+  var ICONS = {
+    chat: 'M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.3-4.6A8.5 8.5 0 1 1 21 11.5z',
+    close: 'M18 6 6 18M6 6l12 12',
+    send: 'M12 19V5M5 12l7-7 7 7',
+    point: 'M4 4l6.5 15.5 2.3-6.7 6.7-2.3L4 4z',
+    spark: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z',
+  };
+
+  // Icons are built node by node, like everything else here: no markup strings.
+  function icon(name, size, filled) {
+    if (!document.createElementNS) return el('span', 'ico');
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    var attrs = {
+      class: 'ico', width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true',
+      fill: filled ? 'currentColor' : 'none', stroke: filled ? '#fff' : 'currentColor',
+      'stroke-width': filled ? 1.5 : 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+    };
+    for (var key in attrs) svg.setAttribute(key, attrs[key]);
+    var path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', ICONS[name]);
+    svg.appendChild(path);
+    return svg;
+  }
+
+  // A plain word for what she is hovering, shown on the outline.
+  var KINDS = {
+    h1: 'heading', h2: 'heading', h3: 'heading', h4: 'heading', h5: 'heading', h6: 'heading',
+    p: 'text', span: 'text', em: 'text', strong: 'text', b: 'text', i: 'text', small: 'text', blockquote: 'quote',
+    a: 'link', button: 'button', img: 'image', picture: 'image', svg: 'icon', video: 'video',
+    ul: 'list', ol: 'list', li: 'list item', nav: 'menu', header: 'header', footer: 'footer',
+    section: 'section', form: 'form', input: 'field', textarea: 'field', select: 'field', label: 'label',
+    table: 'table', td: 'cell', th: 'cell',
+  };
+
+  function kindOf(node) {
+    return KINDS[String(node.tagName || '').toLowerCase()] || 'block';
+  }
+
+  function restart(node, cls) {
+    node.classList.remove(cls);
+    void node.offsetWidth; // lets the same animation play again
+    node.classList.add(cls);
+  }
 
   function el(tag, cls, text) {
     var node = document.createElement(tag);
@@ -131,7 +251,7 @@
     return el('div', 'msg ' + entry.role, entry.text);
   }
 
-  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt };
+  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf };
 
   var host = el('div');
   host.id = '__bubble_root';
@@ -139,38 +259,63 @@
   root.appendChild(el('style', '', CSS));
 
   var wrap = el('div', 'wrap');
-  var toggle = el('button', 'toggle', '✎');
+  var toggle = el('button', 'toggle');
   toggle.setAttribute('aria-label', 'Ask for a change');
-  toggle.setAttribute('title', 'Ask for a change');
+  toggle.append(icon('chat', 18), el('span', 'spin'), el('span', '', 'Ask for a change'), el('span', 'badge'));
 
   var panel = el('div', 'panel');
   var head = el('div', 'head');
-  var close = el('button', 'close', '×');
+  var close = el('button', 'close');
   close.setAttribute('aria-label', 'Close');
-  head.append(el('span', '', 'Ask for a change'), close);
+  close.append(icon('close', 16));
+  head.append(el('span', 'live'), el('span', 'title', 'Ask for a change'), close);
   var list = el('div', 'list');
-  var empty = el('div', 'empty', 'Type what you want changed on this page. Use Point to pick the exact thing, or an empty space, first.');
+  var empty = el('div', 'empty');
+  var emptyRing = el('div', 'ring');
+  emptyRing.append(icon('spark', 18));
+  empty.append(
+    emptyRing,
+    el('div', '', 'Type what you want changed on this page. Use Point to pick the exact thing, or an empty space, first.'),
+  );
   var statusLine = el('div', 'status');
+  var dots = el('span', 'dots');
+  dots.append(el('i'), el('i'), el('i'));
+  var statusText = el('span', 'what');
+  statusLine.append(dots, statusText);
   var chip = el('div', 'chip');
   var chipText = el('span');
-  var chipClear = el('button', '', '×');
+  var chipClear = el('button');
   chipClear.setAttribute('aria-label', 'Stop pointing at this');
-  chip.append(chipText, chipClear);
+  chipClear.append(icon('close', 12));
+  chip.append(icon('point', 14), chipText, chipClear);
   var form = el('div', 'form');
+  var composer = el('div', 'composer');
   var input = el('textarea');
   input.setAttribute('placeholder', 'Make the heading bigger…');
-  input.setAttribute('rows', '2');
+  input.setAttribute('rows', '1');
   input.setAttribute('aria-label', 'What should change?');
   var row = el('div', 'row');
-  var pointBtn = el('button', 'btn', 'Point');
-  var sendBtn = el('button', 'btn primary', 'Send');
+  var pointBtn = el('button', 'point');
+  var pointLabel = el('span', '', 'Point');
+  pointBtn.append(icon('point', 15), pointLabel);
+  var sendBtn = el('button', 'send');
+  sendBtn.setAttribute('aria-label', 'Send');
+  sendBtn.append(icon('send', 16));
+  sendBtn.disabled = true;
   row.append(pointBtn, sendBtn);
-  form.append(input, row);
+  composer.append(input, row);
+  form.append(composer);
   panel.append(head, list, statusLine, chip, form);
   var outline = el('div', 'outline');
-  var flashBox = el('div', 'outline');
+  var outlineLabel = el('b');
+  outline.append(outlineLabel);
+  var flashBox = el('div', 'outline glow');
   var cursor = el('div', 'cursor');
-  cursor.append(el('div', 'arrow'), el('div', 'tag', 'Claude'));
+  var arrow = icon('point', 22, true);
+  arrow.setAttribute('class', document.createElementNS ? 'arrow' : 'arrow plain');
+  var ping = el('div', 'ping');
+  var tag = el('div', 'tag', 'Claude');
+  cursor.append(ping, arrow, tag);
   wrap.append(toggle, panel);
   root.append(wrap, outline, flashBox, cursor);
   document.documentElement.appendChild(host);
@@ -183,6 +328,7 @@
   var working = false;
   var observer = null;
   var pointing = false;
+  var isOpen = false;
   var count = 0;
 
   function words(node) {
@@ -274,9 +420,19 @@
     cursor.style.transform = 'translate(' + point.x + 'px,' + point.y + 'px)';
   }
 
+  function setTag(text) {
+    if (tag.textContent === text) return;
+    tag.textContent = text;
+    restart(tag, 'pop');
+  }
+
   function cursorTo(node) {
     var box = node.getBoundingClientRect();
     placeCursor(box.left + Math.min(box.width / 2, 120), box.top + Math.min(box.height / 2, 40));
+    // A click ripple as the pointer lands.
+    window.setTimeout(function () {
+      restart(ping, 'go');
+    }, 650);
   }
 
   function flash(node) {
@@ -286,9 +442,7 @@
     flashBox.style.width = box.width + 'px';
     flashBox.style.height = box.height + 'px';
     flashBox.hidden = false;
-    flashBox.classList.remove('flash');
-    void flashBox.offsetWidth; // restart the fade
-    flashBox.classList.add('flash');
+    restart(flashBox, 'flash');
   }
 
   function onScreen(node) {
@@ -317,6 +471,7 @@
   function startWork() {
     working = true;
     changedPath = null;
+    setTag('Claude');
     cursor.classList.add('on', 'busy');
     var target = find(workPath);
     if (target && onScreen(target)) cursorTo(target);
@@ -349,14 +504,16 @@
     if (!node) return;
     if (!onScreen(node) && node.scrollIntoView) node.scrollIntoView({ block: 'center' });
     cursor.classList.add('on');
+    setTag('Done \u2713');
     cursorTo(node);
     flash(node);
-    window.setTimeout(hideCursor, 2200);
+    window.setTimeout(hideCursor, 2400);
   }
 
   function setOpen(open) {
-    panel.hidden = !open;
-    toggle.hidden = open;
+    isOpen = open;
+    wrap.classList.toggle('open', open);
+    if (open) toggle.classList.remove('unread');
     try {
       window.sessionStorage.setItem('bubble_open', open ? '1' : '0');
     } catch (e) {}
@@ -370,11 +527,19 @@
     list.scrollTop = list.scrollHeight;
   }
 
-  function show(node) {
+  function show(node, fresh) {
     if (count === 0) list.replaceChildren();
     count++;
+    if (fresh) node.classList.add('new');
     list.appendChild(node);
     scrollDown();
+  }
+
+  // The box grows with what she types, up to a limit, and Send wakes up.
+  function fit() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 132) + 'px';
+    sendBtn.disabled = !String(input.value || '').trim();
   }
 
   function setPointed(value) {
@@ -390,7 +555,7 @@
   function setPointing(on) {
     pointing = on;
     pointBtn.classList.toggle('on', on);
-    pointBtn.textContent = on ? 'Click something…' : 'Point';
+    pointLabel.textContent = on ? 'Click something…' : 'Point';
     outline.hidden = true;
     document.documentElement.style.cursor = on ? 'crosshair' : '';
   }
@@ -406,6 +571,7 @@
     var body = { text: text };
     if (pointed) body.pointed = pointed;
     sendBtn.disabled = true;
+    restart(sendBtn, 'sent');
     // Set before sending: the "working" signal can arrive before the reply.
     if (!working) workPath = pointedPath;
     window
@@ -420,11 +586,9 @@
         setPointed(null);
       })
       .catch(function () {
-        show(el('div', 'msg error', "That didn't send. Check your connection and try again."));
+        show(el('div', 'msg error', "That didn't send. Check your connection and try again."), true);
       })
-      .then(function () {
-        sendBtn.disabled = false;
-      });
+      .then(fit);
   }
 
   toggle.addEventListener('click', function () {
@@ -435,6 +599,7 @@
     setOpen(false);
   });
   sendBtn.addEventListener('click', send);
+  input.addEventListener('input', fit);
   input.addEventListener('keydown', function (event) {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
@@ -458,6 +623,8 @@
       }
       var space = spaceAt(event.target, event.clientX, event.clientY);
       var box = space ? space.box : event.target.getBoundingClientRect();
+      outlineLabel.textContent = space ? 'space \u00b7 ' + space.payload.gap : kindOf(event.target);
+      outline.classList.toggle('low', box.top < 26);
       outline.style.top = box.top + 'px';
       outline.style.left = box.left + 'px';
       outline.style.width = box.width + 'px';
@@ -505,18 +672,20 @@
     count = 0;
     list.replaceChildren(empty);
     entries.forEach(function (entry) {
-      show(renderEntry(entry));
+      show(renderEntry(entry), false);
     });
   });
   source.addEventListener('entry', function (event) {
     var entry = JSON.parse(event.data);
-    show(renderEntry(entry));
+    show(renderEntry(entry), true);
     if (entry.role === 'visitor') return;
+    if (!isOpen) toggle.classList.add('unread');
     // Show the change even when the project has no live reload of its own.
     if (entry.role === 'claude' && entry.files && entry.files.length) {
       try {
         window.sessionStorage.setItem('bubble_flash', changedPath || workPath || '');
       } catch (e) {}
+      setTag('Done \u2713');
       window.setTimeout(function () {
         window.location.reload();
       }, 1500);
@@ -527,8 +696,9 @@
   });
   source.addEventListener('status', function (event) {
     var text = JSON.parse(event.data);
-    statusLine.textContent = text;
+    statusText.textContent = text;
     statusLine.hidden = !text;
+    wrap.classList.toggle('working', !!text);
     scrollDown();
     if (text && !working) startWork();
     if (!text && working) stopWork();

@@ -210,3 +210,12 @@ test('gapAt says a point on a thing is not empty space', () => {
   const { w } = boot();
   assert.equal(w.__bubble.gapAt([{ top: 0, bottom: 50, left: 0, right: 300 }], 10, 10), null);
 });
+
+test('kindOf names what she is hovering in plain words', () => {
+  const { w } = boot();
+  assert.equal(w.__bubble.kindOf(new El('h2')), 'heading');
+  assert.equal(w.__bubble.kindOf(new El('button')), 'button');
+  assert.equal(w.__bubble.kindOf(new El('img')), 'image');
+  assert.equal(w.__bubble.kindOf(new El('div')), 'block');
+  assert.equal(w.__bubble.kindOf(new El('my-widget')), 'block');
+});
