@@ -13,8 +13,8 @@ if (process.env.FAKE_RECORD) {
   );
 }
 const say = (o) => process.stdout.write(JSON.stringify(o) + '\n');
-const use = (name, file) =>
-  say({ type: 'assistant', message: { content: [{ type: 'tool_use', name, input: { file_path: file } }] } });
+const use = (name, file, extra = {}) =>
+  say({ type: 'assistant', message: { content: [{ type: 'tool_use', name, input: { file_path: file, ...extra } }] } });
 
 if (mode === 'ok') {
   const file = path.join(process.cwd(), 'index.html');
@@ -24,6 +24,15 @@ if (mode === 'ok') {
   use('Edit', file);
   say({ type: 'assistant', message: { content: [{ type: 'text', text: 'Done.' }] } });
   say({ type: 'result', subtype: 'success', is_error: false, result: 'Made it bigger.', session_id: 'sess-1' });
+} else if (mode === 'steps') {
+  const file = path.join(process.cwd(), 'src', 'page.html');
+  say({ type: 'system', subtype: 'init', session_id: 'sess-1' });
+  say({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Grep', input: { pattern: 'Get started' } }] } });
+  use('Read', file);
+  use('Edit', file, { old_string: '  <h1>hello</h1>\n  <p>old</p>', new_string: '  <h1>bye</h1>' });
+  use('Write', path.join(process.cwd(), 'new.css'), { content: 'x'.repeat(500) });
+  use('Edit', file, { old_string: 'a'.repeat(300), new_string: '' });
+  say({ type: 'result', subtype: 'success', is_error: false, result: 'Done.', session_id: 'sess-1' });
 } else if (mode === 'error') {
   say({ type: 'system', subtype: 'init', session_id: 'sess-1' });
   say({ type: 'assistant', message: { content: [{ type: 'text', text: 'hm' }] } });

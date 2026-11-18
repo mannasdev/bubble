@@ -185,3 +185,29 @@ test('buildPrompt handles a space with nothing before it', () => {
       'the element after the space: h1 "Hi"\nsize of the space: unknown',
   );
 });
+
+test('reports each step with the file and what an edit replaced', async () => {
+  const steps = [];
+  const r = run('steps', { onStep: (s) => steps.push(s) });
+  await r.promise;
+  assert.deepEqual(steps, [
+    { action: 'search', query: 'Get started' },
+    { action: 'read', file: 'src/page.html' },
+    { action: 'edit', file: 'src/page.html', before: '<h1>hello</h1> <p>old</p>', after: '<h1>bye</h1>' },
+    { action: 'write', file: 'new.css' },
+    { action: 'edit', file: 'src/page.html', before: 'a'.repeat(120) + '\u2026', after: '' },
+  ]);
+});
+
+test('buildPrompt adds the message she is replying to', () => {
+  assert.equal(
+    buildPrompt('darker please', null, 'The button is now blue.'),
+    'darker please\n\n(She is replying to this earlier message of yours: "The button is now blue.")',
+  );
+});
+
+test('the reply context reaches claude on stdin', async () => {
+  const r = run('ok', { replyTo: 'The button is now blue.' });
+  await r.promise;
+  assert.match(r.recorded().stdin, /She is replying to this earlier message of yours: "The button is now blue\."/);
+});

@@ -229,3 +229,23 @@ test('cornerFor snaps to whichever corner the bubble was dropped nearest', () =>
   assert.equal(c(100, 100), 'tl');
   assert.equal(c(500, 400), 'br');
 });
+
+test('a reply from Claude with a change log still shows its words as plain text', () => {
+  const { w } = boot();
+  const text = '<img src=x onerror=alert(1)>';
+  const node = w.__bubble.renderEntry({
+    role: 'claude', text,
+    steps: [{ action: 'read', file: 'a.html' }, { action: 'edit', file: 'a.html', before: '<b>', after: '<i>' }],
+  });
+  const body = node.children.find((c) => c.className === 'body');
+  assert.equal(body.textContent, text);
+  assert.equal(body.children.length, 0);
+  const labels = node.children.find((c) => c.className === 'acts').children.map((b) => b.textContent);
+  assert.deepEqual(labels, ['Reply', '1 change']);
+});
+
+test('her reply shows the message it answers as a quote', () => {
+  const { w } = boot();
+  const node = w.__bubble.renderEntry({ role: 'visitor', text: 'darker', replyTo: 'The button is blue.' });
+  assert.deepEqual(node.children.map((c) => [c.className, c.textContent]), [['quote', 'The button is blue.'], ['body', 'darker']]);
+});

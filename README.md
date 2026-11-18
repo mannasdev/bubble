@@ -48,6 +48,21 @@ changes on the page is briefly outlined. When Claude is done the page
 refreshes and the pointer lands on what changed. The pointer is a visual
 effect: Claude edits files, it does not click on the page.
 
+## Replying, and seeing what changed
+
+Every answer from Claude has a Reply button. Replying quotes that answer, so
+"a bit lighter please" is understood as being about it.
+
+While Claude works, the bubble lists what it is doing ("Looked at
+index.html", "Edited index.html"). Afterwards each answer has an "N changes"
+button that opens the log, with what each edit replaced and what it put there.
+The same steps are saved with the conversation in `.bubble/history.json`.
+
+## Moving it
+
+Drag the launcher, or the open panel by its header, to any corner. It stays
+there for that site.
+
 ## Pointing
 
 Point picks either a thing on the page or the empty space between things.

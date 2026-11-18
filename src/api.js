@@ -5,6 +5,8 @@ import { runClaude, RunError } from './runner.js';
 const MAX_BODY = 16 * 1024;
 const MAX_TEXT = 2000;
 const MAX_POINTED_HTML = 500;
+const MAX_REPLY_TO = 200;
+const MAX_STEPS = 40;
 const FAILED_TEXT = "Something went wrong on Mannas's side. Tell him.";
 
 function json(res, status, value) {
@@ -53,6 +55,7 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
   const queue = [];
   let working = false;
   let status = '';
+  let steps = []; // what Claude has done so far for the request in progress
 
   const emit = (event, data) => {
     const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -69,9 +72,25 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     return entry;
   };
 
+  const addStep = (step) => {
+    if (steps.length >= MAX_STEPS) return;
+    steps.push(step);
+    emit('step', step);
+  };
+
   async function runJob(job) {
+    steps = [];
     const attempt = (sessionId) =>
-      run({ projectDir, text: job.text, pointed: job.pointed, sessionId, onStatus: setStatus, owner });
+      run({
+        projectDir,
+        text: job.text,
+        pointed: job.pointed,
+        replyTo: job.replyTo,
+        sessionId,
+        onStatus: setStatus,
+        onStep: addStep,
+        owner,
+      });
     try {
       let result;
       try {
@@ -82,10 +101,12 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
         result = await attempt(null);
       }
       if (result.sessionId) state.setSession(result.sessionId);
-      add('claude', result.reply, { files: result.files });
+      add('claude', result.reply, { files: result.files, ...(steps.length ? { steps } : {}) });
+      steps = [];
       state.log(job.text, result.reply, result.files);
     } catch (err) {
       console.error(`[bubble] request failed: ${err?.message ?? err}`);
+      steps = [];
       add('error', FAILED_TEXT);
       state.log(job.text, `(failed: ${err?.message ?? err})`, []);
     }
@@ -116,8 +137,9 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     // A conversation that has been quiet too long ends here, before this
     // message is saved and makes it look recent again.
     if (state.session() === null) state.clearSession();
-    const entry = add('visitor', text);
-    queue.push({ text, pointed: cleanPointed(body.pointed) });
+    const replyTo = typeof body.replyTo === 'string' ? body.replyTo.trim().slice(0, MAX_REPLY_TO) : '';
+    const entry = add('visitor', text, replyTo ? { replyTo } : {});
+    queue.push({ text, pointed: cleanPointed(body.pointed), replyTo: replyTo || undefined });
     json(res, 202, { id: entry.id });
     drain();
   }
@@ -131,6 +153,7 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     });
     res.write(`event: history\ndata: ${JSON.stringify(state.history())}\n\n`);
     res.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
+    if (steps.length) res.write(`event: steps\ndata: ${JSON.stringify(steps)}\n\n`);
     listeners.add(res);
     const ping = setInterval(() => res.write(': ping\n\n'), 25000);
     req.on('close', () => {

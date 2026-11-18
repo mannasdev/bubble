@@ -55,7 +55,12 @@ export class RunError extends Error {
 }
 
 /** The text handed to Claude: her words, plus the element she pointed at. */
-export function buildPrompt(text, pointed) {
+export function buildPrompt(text, pointed, replyTo) {
+  const reply = replyTo ? `\n\n(She is replying to this earlier message of yours: "${replyTo}")` : '';
+  return describePointed(text, pointed) + reply;
+}
+
+function describePointed(text, pointed) {
   if (!pointed) return text;
   if (pointed.kind === 'space') {
     return (
@@ -96,13 +101,32 @@ function relativeTo(projectDir, file) {
   return file;
 }
 
+/** One line of code, short enough to show in the change log. */
+function brief(value) {
+  const line = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return line.length > 120 ? line.slice(0, 120) + '\u2026' : line;
+}
+
+/** What one tool call did, for the change log she sees. */
+function stepFor(block, projectDir) {
+  const input = block.input ?? {};
+  const file = input.file_path ? relativeTo(projectDir, input.file_path) : undefined;
+  if (block.name === 'Grep' || block.name === 'Glob') return { action: 'search', query: brief(input.pattern) };
+  if (block.name === 'Read') return { action: 'read', file };
+  if (block.name === 'Edit') return { action: 'edit', file, before: brief(input.old_string), after: brief(input.new_string) };
+  if (block.name === 'Write') return { action: 'write', file };
+  return null;
+}
+
 /** Run one request through a restricted, unattended Claude Code. */
 export function runClaude({
   projectDir,
   text,
   pointed,
   sessionId,
+  replyTo,
   onStatus,
+  onStep,
   owner = false,
   claudeBin = 'claude',
   timeoutMs = 300000,
@@ -124,7 +148,7 @@ export function runClaude({
     // Her words go in on stdin, never as an argument: a message that starts
     // with a dash would otherwise be read as an option.
     child.stdin.on('error', () => {});
-    child.stdin.end(buildPrompt(text, pointed));
+    child.stdin.end(buildPrompt(text, pointed, replyTo));
     const files = [];
     let result = null;
     let sawWork = false;
@@ -158,6 +182,8 @@ export function runClaude({
         sawWork = true;
         for (const block of event.message?.content ?? []) {
           if (block.type !== 'tool_use') continue;
+          const step = stepFor(block, projectDir);
+          if (step) onStep?.(step);
           if (LOOKING.has(block.name)) onStatus?.('Looking at the code…');
           if (CHANGING.has(block.name)) {
             onStatus?.('Making the change…');

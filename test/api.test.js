@@ -272,3 +272,77 @@ test('an unknown kind of pointing is treated as an element', async (t) => {
   await a.settled(2);
   assert.deepEqual(got, { selector: 'h1', text: 'Hi', html: '<h1>Hi</h1>' });
 });
+
+test('the steps of a change are saved with the reply and sent live', async (t) => {
+  const a = await setup(async ({ onStep }) => {
+    onStep({ action: 'read', file: 'index.html' });
+    onStep({ action: 'edit', file: 'index.html', before: 'hello', after: 'bye' });
+    await sleep(20);
+    return { reply: 'done', sessionId: 's', files: ['index.html'] };
+  });
+  t.after(a.close);
+  const events = [];
+  const controller = new AbortController();
+  const res = await fetch(a.base + '/__bubble/events', { signal: controller.signal });
+  (async () => {
+    let buf = '';
+    try {
+      for await (const chunk of res.body) {
+        buf += Buffer.from(chunk).toString();
+        let i;
+        while ((i = buf.indexOf('\n\n')) !== -1) {
+          const block = buf.slice(0, i);
+          buf = buf.slice(i + 2);
+          const name = /^event: (.*)$/m.exec(block)?.[1];
+          if (name === 'step') events.push(JSON.parse(/^data: (.*)$/m.exec(block)[1]));
+        }
+      }
+    } catch {}
+  })();
+  await sleep(30);
+  await a.send({ text: 'go' });
+  const h = await a.settled(2);
+  await sleep(30);
+  controller.abort();
+  const steps = [
+    { action: 'read', file: 'index.html' },
+    { action: 'edit', file: 'index.html', before: 'hello', after: 'bye' },
+  ];
+  assert.deepEqual(h[1].steps, steps);
+  assert.deepEqual(events, steps);
+});
+
+test('a reply carries the message it answers, cut to 200 characters', async (t) => {
+  let got;
+  const a = await setup(async (job) => {
+    got = job.replyTo;
+    return { reply: 'ok', sessionId: 's', files: [] };
+  });
+  t.after(a.close);
+  await a.send({ text: 'darker', replyTo: 'x'.repeat(900) });
+  const h = await a.settled(2);
+  assert.equal(got, 'x'.repeat(200));
+  assert.equal(h[0].replyTo, 'x'.repeat(200));
+});
+
+test('a listener that joins mid-change is told the steps so far', async (t) => {
+  let release;
+  const a = await setup(async ({ onStep }) => {
+    onStep({ action: 'edit', file: 'a.css', before: '1', after: '2' });
+    await new Promise((r) => (release = r));
+    return { reply: 'done', sessionId: 's', files: ['a.css'] };
+  });
+  t.after(a.close);
+  await a.send({ text: 'go' });
+  await sleep(30);
+  const controller = new AbortController();
+  const res = await fetch(a.base + '/__bubble/events', { signal: controller.signal });
+  let text = '';
+  for await (const chunk of res.body) {
+    text += Buffer.from(chunk).toString();
+    if (text.includes('event: steps')) break;
+  }
+  controller.abort();
+  release();
+  assert.match(text, /event: steps\ndata: \[\{"action":"edit","file":"a.css","before":"1","after":"2"\}\]/);
+});

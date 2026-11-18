@@ -11,7 +11,7 @@
     '*{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}',
     // Tokens. The panel is frosted glass so it sits on any site; one accent colour.
     '.wrap,.outline,.cursor{--accent:#2f6fed;--accent-soft:rgba(47,111,237,.14);--accent-line:rgba(47,111,237,.4)}',
-    '.wrap{--bg:rgba(255,255,255,.88);--field:rgba(255,255,255,.9);--fg:#16161a;--muted:#6e6e78;--line:rgba(0,0,0,.09);--mine:rgba(0,0,0,.055);--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
+    '.wrap{--del:#b3261e;--del-bg:rgba(214,60,50,.1);--add:#167a4a;--add-bg:rgba(43,182,115,.14);--bg:rgba(255,255,255,.88);--field:rgba(255,255,255,.9);--fg:#16161a;--muted:#6e6e78;--line:rgba(0,0,0,.09);--mine:rgba(0,0,0,.055);--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
     'position:fixed;right:16px;bottom:16px;z-index:2147483647;font-size:14px;line-height:1.4;color:var(--fg);--ox:100%;--oy:100%;--dy:14px}',
     // It can be dragged to any corner; these move it and flip how the panel opens.
     '.wrap.left{right:auto;left:16px;--ox:0%}',
@@ -26,7 +26,7 @@
     '.dragging .toggle::after{animation:none}',
     '.dragging .panel{box-shadow:0 40px 90px -16px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.14)}',
     '@media (prefers-color-scheme:dark){.wrap,.outline,.cursor{--accent:#5b8cff;--accent-soft:rgba(91,140,255,.18);--accent-line:rgba(91,140,255,.5)}',
-    '.wrap{--bg:rgba(24,24,28,.86);--field:rgba(255,255,255,.05);--fg:#f3f3f6;--muted:#9a9aa6;--line:rgba(255,255,255,.11);--mine:rgba(255,255,255,.08);--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
+    '.wrap{--del:#ff9a90;--del-bg:rgba(255,120,110,.13);--add:#6fdda6;--add-bg:rgba(60,200,130,.14);--bg:rgba(24,24,28,.86);--field:rgba(255,255,255,.05);--fg:#f3f3f6;--muted:#9a9aa6;--line:rgba(255,255,255,.11);--mine:rgba(255,255,255,.08);--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
     'button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}',
     'button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
     'svg{display:block;flex:none}',
@@ -74,7 +74,25 @@
     '@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}',
 
     // "Claude is typing": three bouncing dots and a shimmer across the words.
-    '.status{display:flex;align-items:center;gap:8px;margin:0 12px 10px;padding:8px 12px;align-self:flex-start;background:var(--mine);border-radius:16px 16px 16px 5px;font-size:13px;animation:rise .3s ' + EASE + ' both}',
+    // Replies and the log of what was changed.
+    '.quote{margin-bottom:5px;padding-left:8px;border-left:2px solid currentColor;font-size:12px;opacity:.8;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
+    '.acts{display:flex;gap:2px;margin:6px -5px -3px}',
+    '.acts button{display:flex;align-items:center;gap:4px;padding:3px 7px;border-radius:8px;font-size:12px;font-weight:550;color:var(--muted);transition:background .15s,color .15s}',
+    '.acts button:hover{background:var(--mine);color:var(--fg)}',
+    '.acts .ico{transition:transform .25s ' + EASE + '}',
+    '.acts .openlog .ico{transform:rotate(180deg)}',
+    '.log{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px}',
+    '.step{animation:rise .28s ' + EASE + ' both}',
+    '.step .verb{color:var(--muted)}',
+    '.step .file{font-weight:600;overflow-wrap:anywhere}',
+    '.diff{margin-top:4px;border:1px solid var(--line);border-radius:8px;overflow:hidden;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}',
+    '.diff div{padding:3px 7px;white-space:pre-wrap;overflow-wrap:anywhere}',
+    '.del{background:var(--del-bg);color:var(--del);text-decoration:line-through}',
+    '.add{background:var(--add-bg);color:var(--add)}',
+    '.status .top{display:flex;align-items:center;gap:8px}',
+    '.live-log{display:flex;flex-direction:column;gap:3px;font-size:12px}',
+    '.live-log:empty{display:none}',
+    '.status{display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:86%;margin:0 12px 10px;padding:8px 12px;align-self:flex-start;background:var(--mine);border-radius:16px 16px 16px 5px;font-size:13px;animation:rise .3s ' + EASE + ' both}',
     '.dots{display:flex;gap:3px}',
     '.dots i{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:hop 1.1s ease-in-out infinite}',
     '.dots i:nth-child(2){animation-delay:.14s}',
@@ -137,6 +155,8 @@
     send: 'M12 19V5M5 12l7-7 7 7',
     point: 'M4 4l6.5 15.5 2.3-6.7 6.7-2.3L4 4z',
     spark: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z',
+    reply: 'M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3',
+    down: 'M6 9l6 6 6-6',
   };
 
   // Icons are built node by node, like everything else here: no markup strings.
@@ -264,8 +284,71 @@
   }
 
   // Message text always goes in as text, never as markup.
+  var VERBS = { search: 'Searched for', read: 'Looked at', edit: 'Edited', write: 'Wrote' };
+
+  // One line of the change log; edits can show what was replaced with what.
+  function stepNode(step, withDiff) {
+    var node = el('div', 'step');
+    node.append(
+      el('span', 'verb', (VERBS[step.action] || 'Did') + ' '),
+      el('span', 'file', step.file || '\u201c' + (step.query || '') + '\u201d'),
+    );
+    if (withDiff && step.action === 'edit' && (step.before || step.after)) {
+      var diff = el('div', 'diff');
+      if (step.before) diff.append(el('div', 'del', step.before));
+      if (step.after) diff.append(el('div', 'add', step.after));
+      node.append(diff);
+    }
+    return node;
+  }
+
+  function changeCount(steps) {
+    var n = 0;
+    for (var i = 0; i < (steps || []).length; i++) {
+      if (steps[i].action === 'edit' || steps[i].action === 'write') n++;
+    }
+    return n;
+  }
+
   function renderEntry(entry) {
-    return el('div', 'msg ' + entry.role, entry.text);
+    if (entry.role !== 'claude' && !entry.replyTo) return el('div', 'msg ' + entry.role, entry.text);
+    var node = el('div', 'msg ' + entry.role);
+    if (entry.replyTo) node.append(el('div', 'quote', entry.replyTo));
+    node.append(el('div', 'body', entry.text));
+    if (entry.role !== 'claude') return node;
+
+    var acts = el('div', 'acts');
+    var replyBtn = el('button');
+    replyBtn.append(icon('reply', 13), el('span', '', 'Reply'));
+    replyBtn.addEventListener('click', function () {
+      setReply(entry.text);
+    });
+    acts.append(replyBtn);
+    node.append(acts);
+
+    var changes = changeCount(entry.steps);
+    if (changes) {
+      var log = el('div', 'log');
+      log.hidden = true;
+      var logBtn = el('button');
+      logBtn.append(el('span', '', changes === 1 ? '1 change' : changes + ' changes'), icon('down', 13));
+      logBtn.setAttribute('aria-expanded', 'false');
+      logBtn.addEventListener('click', function () {
+        var opening = log.hidden;
+        if (opening && !log.children.length) {
+          entry.steps.forEach(function (step) {
+            log.append(stepNode(step, true));
+          });
+        }
+        log.hidden = !opening;
+        logBtn.classList.toggle('openlog', opening);
+        logBtn.setAttribute('aria-expanded', String(opening));
+        if (opening && node.scrollIntoView) node.scrollIntoView({ block: 'nearest' });
+      });
+      acts.append(logBtn);
+      node.append(log);
+    }
+    return node;
   }
 
   window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf, cornerFor: cornerFor };
@@ -298,13 +381,22 @@
   var dots = el('span', 'dots');
   dots.append(el('i'), el('i'), el('i'));
   var statusText = el('span', 'what');
-  statusLine.append(dots, statusText);
+  var statusTop = el('div', 'top');
+  statusTop.append(dots, statusText);
+  var liveLog = el('div', 'live-log');
+  statusLine.append(statusTop, liveLog);
   var chip = el('div', 'chip');
   var chipText = el('span');
   var chipClear = el('button');
   chipClear.setAttribute('aria-label', 'Stop pointing at this');
   chipClear.append(icon('close', 12));
   chip.append(icon('point', 14), chipText, chipClear);
+  var replyChip = el('div', 'chip');
+  var replyChipText = el('span');
+  var replyClear = el('button');
+  replyClear.setAttribute('aria-label', 'Stop replying to this');
+  replyClear.append(icon('close', 12));
+  replyChip.append(icon('reply', 14), replyChipText, replyClear);
   var form = el('div', 'form');
   var composer = el('div', 'composer');
   var input = el('textarea');
@@ -322,7 +414,7 @@
   row.append(pointBtn, sendBtn);
   composer.append(input, row);
   form.append(composer);
-  panel.append(head, list, statusLine, chip, form);
+  panel.append(head, list, statusLine, replyChip, chip, form);
   var outline = el('div', 'outline');
   var outlineLabel = el('b');
   outline.append(outlineLabel);
@@ -345,6 +437,8 @@
   var working = false;
   var observer = null;
   var pointing = false;
+  var replyTo = null; // the message of Claude's she is answering
+  var liveSteps = [];
   var isOpen = false;
   var count = 0;
 
@@ -569,6 +663,22 @@
     chipText.textContent = value ? 'Pointing at: ' + name : '';
   }
 
+  function setReply(text) {
+    replyTo = text ? String(text).slice(0, 200) : null;
+    replyChip.hidden = !replyTo;
+    replyChipText.textContent = replyTo ? 'Replying to: \u201c' + replyTo.slice(0, 60) + (replyTo.length > 60 ? '\u2026' : '') + '\u201d' : '';
+    if (replyTo) input.focus();
+  }
+
+  // While Claude works, the last few things it did show under the status.
+  function showLive() {
+    liveLog.replaceChildren();
+    liveSteps.slice(-4).forEach(function (step) {
+      liveLog.append(stepNode(step, false));
+    });
+    scrollDown();
+  }
+
   function setPointing(on) {
     pointing = on;
     pointBtn.classList.toggle('on', on);
@@ -587,6 +697,7 @@
     if (!text) return;
     var body = { text: text };
     if (pointed) body.pointed = pointed;
+    if (replyTo) body.replyTo = replyTo;
     sendBtn.disabled = true;
     restart(sendBtn, 'sent');
     // Set before sending: the "working" signal can arrive before the reply.
@@ -601,6 +712,7 @@
         if (!res.ok) throw new Error('refused');
         input.value = '';
         setPointed(null);
+        setReply(null);
       })
       .catch(function () {
         show(el('div', 'msg error', "That didn't send. Check your connection and try again."), true);
@@ -696,6 +808,9 @@
   chipClear.addEventListener('click', function () {
     setPointed(null);
   });
+  replyClear.addEventListener('click', function () {
+    setReply(null);
+  });
 
   document.addEventListener(
     'mousemove',
@@ -763,6 +878,8 @@
     var entry = JSON.parse(event.data);
     show(renderEntry(entry), true);
     if (entry.role === 'visitor') return;
+    liveSteps = [];
+    showLive();
     if (!isOpen) toggle.classList.add('unread');
     // Show the change even when the project has no live reload of its own.
     if (entry.role === 'claude' && entry.files && entry.files.length) {
@@ -778,6 +895,14 @@
     }
     workPath = null;
   });
+  source.addEventListener('step', function (event) {
+    liveSteps.push(JSON.parse(event.data));
+    showLive();
+  });
+  source.addEventListener('steps', function (event) {
+    liveSteps = JSON.parse(event.data);
+    showLive();
+  });
   source.addEventListener('status', function (event) {
     var text = JSON.parse(event.data);
     statusText.textContent = text;
@@ -791,6 +916,7 @@
   list.appendChild(empty);
   statusLine.hidden = true;
   setPointed(null);
+  setReply(null);
   outline.hidden = true;
   flashBox.hidden = true;
   // Park the pointer by the bubble without animating, so its first glide
