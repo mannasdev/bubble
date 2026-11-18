@@ -12,7 +12,19 @@
     // Tokens. The panel is frosted glass so it sits on any site; one accent colour.
     '.wrap,.outline,.cursor{--accent:#2f6fed;--accent-soft:rgba(47,111,237,.14);--accent-line:rgba(47,111,237,.4)}',
     '.wrap{--bg:rgba(255,255,255,.88);--field:rgba(255,255,255,.9);--fg:#16161a;--muted:#6e6e78;--line:rgba(0,0,0,.09);--mine:rgba(0,0,0,.055);--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
-    'position:fixed;right:16px;bottom:16px;z-index:2147483647;font-size:14px;line-height:1.4;color:var(--fg)}',
+    'position:fixed;right:16px;bottom:16px;z-index:2147483647;font-size:14px;line-height:1.4;color:var(--fg);--ox:100%;--oy:100%;--dy:14px}',
+    // It can be dragged to any corner; these move it and flip how the panel opens.
+    '.wrap.left{right:auto;left:16px;--ox:0%}',
+    '.wrap.top{bottom:auto;top:16px;--oy:0%;--dy:-14px}',
+    '.left .panel{right:auto;left:0}',
+    '.top .panel{bottom:auto;top:0}',
+    '.left .badge{right:auto;left:-3px}',
+    '.toggle,.head{touch-action:none;-webkit-user-select:none;user-select:none}',
+    '.head{cursor:grab}',
+    '.dragging,.dragging .toggle,.dragging .head{cursor:grabbing}',
+    '.dragging .toggle{transform:scale(1.06);box-shadow:0 20px 40px -10px rgba(0,0,0,.55)}',
+    '.dragging .toggle::after{animation:none}',
+    '.dragging .panel{box-shadow:0 40px 90px -16px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.14)}',
     '@media (prefers-color-scheme:dark){.wrap,.outline,.cursor{--accent:#5b8cff;--accent-soft:rgba(91,140,255,.18);--accent-line:rgba(91,140,255,.5)}',
     '.wrap{--bg:rgba(24,24,28,.86);--field:rgba(255,255,255,.05);--fg:#f3f3f6;--muted:#9a9aa6;--line:rgba(255,255,255,.11);--mine:rgba(255,255,255,.08);--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
     'button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}',
@@ -38,7 +50,7 @@
 
     // Panel: springs out of the corner the launcher sits in.
     '.panel{position:absolute;right:0;bottom:0;width:min(344px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 32px));display:flex;flex-direction:column;background:var(--bg);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border:1px solid var(--line);border-radius:18px;box-shadow:0 28px 70px -14px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.1);overflow:hidden;',
-    'transform-origin:100% 100%;opacity:0;transform:scale(.86) translateY(14px);pointer-events:none;visibility:hidden;transition:transform .2s ease,opacity .16s ease,visibility 0s linear .2s}',
+    'transform-origin:var(--ox) var(--oy);opacity:0;transform:scale(.86) translateY(var(--dy));pointer-events:none;visibility:hidden;transition:transform .2s ease,opacity .16s ease,visibility 0s linear .2s}',
     '.open .panel{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:transform .36s ' + SPRING + ',opacity .18s ease,visibility 0s}',
     '.head{display:flex;align-items:center;gap:9px;padding:13px 10px 11px 15px;border-bottom:1px solid var(--line)}',
     '.live{width:8px;height:8px;border-radius:50%;background:#2bb673;flex:none;transition:background .3s}',
@@ -246,12 +258,17 @@
     };
   }
 
+  // Which corner the bubble snaps to when dropped at this point.
+  function cornerFor(x, y, width, height) {
+    return (y < height / 2 ? 't' : 'b') + (x < width / 2 ? 'l' : 'r');
+  }
+
   // Message text always goes in as text, never as markup.
   function renderEntry(entry) {
     return el('div', 'msg ' + entry.role, entry.text);
   }
 
-  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf };
+  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf, cornerFor: cornerFor };
 
   var host = el('div');
   host.id = '__bubble_root';
@@ -591,7 +608,74 @@
       .then(fit);
   }
 
+  function setCorner(corner) {
+    wrap.classList.toggle('top', corner.charAt(0) === 't');
+    wrap.classList.toggle('left', corner.charAt(1) === 'l');
+    try {
+      window.localStorage.setItem('bubble_corner', corner);
+    } catch (e) {}
+  }
+
+  // Drag by the launcher or the panel's header; it snaps to the nearest corner.
+  var drag = null;
+  var justDragged = false;
+
+  function visibleBox() {
+    return (isOpen ? panel : toggle).getBoundingClientRect();
+  }
+
+  function dragStart(event) {
+    if (event.button || (event.target && event.target.closest && event.target.closest('.close'))) return;
+    drag = { x: event.clientX, y: event.clientY, moved: false, id: event.pointerId };
+    // Follow the pointer across the whole page: a quick drag leaves the bubble at once.
+    document.addEventListener('pointermove', dragMove, true);
+    document.addEventListener('pointerup', dragEnd, true);
+    document.addEventListener('pointercancel', dragEnd, true);
+  }
+
+  function dragMove(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    var dx = event.clientX - drag.x;
+    var dy = event.clientY - drag.y;
+    if (!drag.moved) {
+      if (Math.abs(dx) + Math.abs(dy) < 6) return;
+      drag.moved = true;
+      wrap.classList.add('dragging');
+      wrap.style.transition = 'none';
+    }
+    event.preventDefault();
+    wrap.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  }
+
+  function dragEnd(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    var moved = drag.moved;
+    drag = null;
+    document.removeEventListener('pointermove', dragMove, true);
+    document.removeEventListener('pointerup', dragEnd, true);
+    document.removeEventListener('pointercancel', dragEnd, true);
+    if (!moved) return;
+    justDragged = true;
+    window.setTimeout(function () {
+      justDragged = false;
+    }, 0);
+    // Slide from where it was dropped into the corner it now belongs to.
+    var from = visibleBox();
+    setCorner(cornerFor(from.left + from.width / 2, from.top + from.height / 2, window.innerWidth, window.innerHeight));
+    wrap.style.transform = '';
+    var to = visibleBox();
+    wrap.style.transform = 'translate(' + (from.left - to.left) + 'px,' + (from.top - to.top) + 'px)';
+    void wrap.offsetWidth;
+    wrap.classList.remove('dragging');
+    wrap.style.transition = 'transform .45s ' + SPRING;
+    wrap.style.transform = '';
+  }
+
+  toggle.addEventListener('pointerdown', dragStart);
+  head.addEventListener('pointerdown', dragStart);
+
   toggle.addEventListener('click', function () {
+    if (justDragged) return;
     setOpen(true);
   });
   close.addEventListener('click', function () {
@@ -712,7 +796,13 @@
   // Park the pointer by the bubble without animating, so its first glide
   // starts from there and not from the top-left corner.
   cursor.style.transition = 'none';
-  placeCursor(window.innerWidth - 60, window.innerHeight - 60);
+  var savedCorner = null;
+  try {
+    savedCorner = window.localStorage.getItem('bubble_corner');
+  } catch (e) {}
+  if (/^[tb][lr]$/.test(savedCorner || '')) setCorner(savedCorner);
+  var home = toggle.getBoundingClientRect();
+  placeCursor(home.left + home.width / 2, home.top + home.height / 2);
   void cursor.offsetWidth;
   cursor.style.transition = '';
   showAfterReload();

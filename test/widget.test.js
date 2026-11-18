@@ -219,3 +219,13 @@ test('kindOf names what she is hovering in plain words', () => {
   assert.equal(w.__bubble.kindOf(new El('div')), 'block');
   assert.equal(w.__bubble.kindOf(new El('my-widget')), 'block');
 });
+
+test('cornerFor snaps to whichever corner the bubble was dropped nearest', () => {
+  const { w } = boot();
+  const c = (x, y) => w.__bubble.cornerFor(x, y, 1000, 800);
+  assert.equal(c(900, 700), 'br');
+  assert.equal(c(100, 700), 'bl');
+  assert.equal(c(900, 100), 'tr');
+  assert.equal(c(100, 100), 'tl');
+  assert.equal(c(500, 400), 'br');
+});
