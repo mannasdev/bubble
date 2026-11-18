@@ -176,3 +176,37 @@ test('clampPoint keeps the pointer inside the visible page', () => {
   assert.deepEqual(c(-50, 9000), [12, 588]);
   assert.deepEqual(c(5000, -1), [788, 12]);
 });
+
+test('gapAt finds the space between two stacked things', () => {
+  const { w } = boot();
+  const rects = [
+    { top: 0, bottom: 50, left: 0, right: 300 },
+    { top: 98, bottom: 150, left: 0, right: 300 },
+  ];
+  const g = w.__bubble.gapAt(rects, 150, 70);
+  assert.deepEqual({ ...g }, { axis: 'y', before: 0, after: 1, start: 50, end: 98 });
+});
+
+test('gapAt finds the space above the first thing and below the last', () => {
+  const { w } = boot();
+  const rects = [
+    { top: 40, bottom: 50, left: 0, right: 300 },
+    { top: 100, bottom: 150, left: 0, right: 300 },
+  ];
+  assert.deepEqual({ ...w.__bubble.gapAt(rects, 10, 20) }, { axis: 'y', before: -1, after: 0, start: null, end: 40 });
+  assert.deepEqual({ ...w.__bubble.gapAt(rects, 10, 400) }, { axis: 'y', before: 1, after: -1, start: 150, end: null });
+});
+
+test('gapAt finds the space between two things side by side', () => {
+  const { w } = boot();
+  const rects = [
+    { top: 0, bottom: 40, left: 0, right: 40 },
+    { top: 0, bottom: 40, left: 100, right: 140 },
+  ];
+  assert.deepEqual({ ...w.__bubble.gapAt(rects, 70, 20) }, { axis: 'x', before: 0, after: 1, start: 40, end: 100 });
+});
+
+test('gapAt says a point on a thing is not empty space', () => {
+  const { w } = boot();
+  assert.equal(w.__bubble.gapAt([{ top: 0, bottom: 50, left: 0, right: 300 }], 10, 10), null);
+});

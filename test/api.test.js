@@ -245,3 +245,30 @@ test('local-only mode tells the run that the owner is typing', async (t) => {
   for (let i = 0; i < 100 && state.history().length < 2; i++) await sleep(10);
   assert.equal(got, true);
 });
+
+test('a pointed empty space is passed on with its neighbours', async (t) => {
+  let got;
+  const a = await setup(async (job) => {
+    got = job.pointed;
+    return { reply: 'ok', sessionId: 's', files: [] };
+  });
+  t.after(a.close);
+  await a.send({
+    text: 'add a section here',
+    pointed: { kind: 'space', selector: 'main', before: 'p "A"', after: 'x'.repeat(900), gap: '48px tall', html: '<b>', junk: 1 },
+  });
+  await a.settled(2);
+  assert.deepEqual(got, { kind: 'space', selector: 'main', before: 'p "A"', after: 'x'.repeat(200), gap: '48px tall' });
+});
+
+test('an unknown kind of pointing is treated as an element', async (t) => {
+  let got;
+  const a = await setup(async (job) => {
+    got = job.pointed;
+    return { reply: 'ok', sessionId: 's', files: [] };
+  });
+  t.after(a.close);
+  await a.send({ text: 'x', pointed: { kind: 'weird', selector: 'h1', text: 'Hi', html: '<h1>Hi</h1>' } });
+  await a.settled(2);
+  assert.deepEqual(got, { selector: 'h1', text: 'Hi', html: '<h1>Hi</h1>' });
+});

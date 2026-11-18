@@ -24,7 +24,7 @@
     '.msg.error{align-self:flex-start;color:var(--err);border:1px solid var(--err)}',
     '.status{padding:0 12px 8px;color:var(--muted);font-size:13px}',
     '.chip{margin:0 12px 8px;padding:4px 8px;border-radius:6px;background:var(--mine);font-size:12px;display:flex;gap:8px;align-items:center;justify-content:space-between}',
-    '.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.chip span{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
     '.form{border-top:1px solid var(--line);padding:8px 12px 12px;display:flex;flex-direction:column;gap:8px}',
     'textarea{width:100%;min-height:56px;max-height:140px;resize:none;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;color:var(--fg);background:var(--bg)}',
     '.row{display:flex;justify-content:space-between;gap:8px}',
@@ -86,6 +86,37 @@
     return ['body'].concat(parts).join(' > ');
   }
 
+  // Is the point on empty space between these boxes? Says which boxes sit
+  // just before and after it (-1 for none) and where the space starts and ends.
+  function gapAt(rects, x, y) {
+    var i;
+    for (i = 0; i < rects.length; i++) {
+      var r = rects[i];
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return null;
+    }
+    var sideways = false;
+    for (i = 0; i < rects.length; i++) {
+      if (y >= rects[i].top && y <= rects[i].bottom) sideways = true;
+    }
+    var lo = sideways ? 'left' : 'top';
+    var hi = sideways ? 'right' : 'bottom';
+    var at = sideways ? x : y;
+    var gap = { axis: sideways ? 'x' : 'y', before: -1, after: -1, start: null, end: null };
+    for (i = 0; i < rects.length; i++) {
+      var box = rects[i];
+      if (sideways && !(y >= box.top && y <= box.bottom)) continue;
+      if (box[hi] <= at && (gap.start === null || box[hi] > gap.start)) {
+        gap.before = i;
+        gap.start = box[hi];
+      }
+      if (box[lo] >= at && (gap.end === null || box[lo] < gap.end)) {
+        gap.after = i;
+        gap.end = box[lo];
+      }
+    }
+    return gap;
+  }
+
   // Keep the fake pointer on screen, a little in from the edges.
   function clampPoint(x, y, width, height) {
     var edge = 12;
@@ -100,7 +131,7 @@
     return el('div', 'msg ' + entry.role, entry.text);
   }
 
-  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint };
+  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt };
 
   var host = el('div');
   host.id = '__bubble_root';
@@ -118,7 +149,7 @@
   close.setAttribute('aria-label', 'Close');
   head.append(el('span', '', 'Ask for a change'), close);
   var list = el('div', 'list');
-  var empty = el('div', 'empty', 'Type what you want changed on this page. Use Point to pick the exact thing first.');
+  var empty = el('div', 'empty', 'Type what you want changed on this page. Use Point to pick the exact thing, or an empty space, first.');
   var statusLine = el('div', 'status');
   var chip = el('div', 'chip');
   var chipText = el('span');
@@ -146,12 +177,89 @@
 
   var pointed = null;
   var pointedPath = null; // where she pointed, for the next message
+  var pointedLabel = ''; // how an empty space she pointed at is described to her
   var workPath = null; // where she pointed, for the message being worked on
   var changedPath = null; // the last thing seen changing on the page
   var working = false;
   var observer = null;
   var pointing = false;
   var count = 0;
+
+  function words(node) {
+    return String(node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  // 'h1#title "Wheelhouse"': what Claude is told about a neighbour.
+  function nameFor(node) {
+    var text = words(node).slice(0, 60);
+    return describe(node) + (text ? ' "' + text + '"' : '');
+  }
+
+  // "Wheelhouse": what she is shown.
+  function shortFor(node) {
+    var text = words(node).slice(0, 28);
+    return text ? '\u201c' + text + '\u201d' : 'the ' + node.tagName.toLowerCase();
+  }
+
+  function onOwnText(node, x, y) {
+    if (!document.createRange) return false;
+    for (var i = 0; i < node.childNodes.length; i++) {
+      var child = node.childNodes[i];
+      if (child.nodeType !== 3 || !child.nodeValue.trim()) continue;
+      var range = document.createRange();
+      range.selectNodeContents(child);
+      var boxes = range.getClientRects();
+      for (var j = 0; j < boxes.length; j++) {
+        var b = boxes[j];
+        if (x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) return true;
+      }
+    }
+    return false;
+  }
+
+  // If the pointer is over empty space inside `node`, describe that space.
+  function spaceAt(node, x, y) {
+    if (!node.children || !node.children.length || onOwnText(node, x, y)) return null;
+    var kids = [];
+    var rects = [];
+    for (var i = 0; i < node.children.length; i++) {
+      var kid = node.children[i];
+      if (kid === host || /^(SCRIPT|STYLE|LINK|META|HEAD)$/.test(kid.tagName)) continue;
+      var r = kid.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      kids.push(kid);
+      rects.push(r);
+    }
+    var gap = gapAt(rects, x, y);
+    if (!gap) return null;
+    var outer = node.getBoundingClientRect();
+    var before = gap.before < 0 ? null : kids[gap.before];
+    var after = gap.after < 0 ? null : kids[gap.after];
+    var start = gap.start === null ? (gap.axis === 'y' ? outer.top : outer.left) : gap.start;
+    var end = gap.end === null ? (gap.axis === 'y' ? outer.bottom : outer.right) : gap.end;
+    var size = Math.max(Math.round(end - start), 0);
+    var box =
+      gap.axis === 'y'
+        ? { left: outer.left, width: outer.width, top: start, height: Math.max(size, 6) }
+        : { top: outer.top, height: outer.height, left: start, width: Math.max(size, 6) };
+    var label;
+    if (before && after) label = 'the space between ' + shortFor(before) + ' and ' + shortFor(after);
+    else if (after) label = 'the space ' + (gap.axis === 'y' ? 'above ' : 'left of ') + shortFor(after);
+    else if (before) label = 'the space ' + (gap.axis === 'y' ? 'below ' : 'right of ') + shortFor(before);
+    else label = 'this empty space';
+    return {
+      box: box,
+      label: label,
+      near: after || before || node,
+      payload: {
+        kind: 'space',
+        selector: describe(node),
+        before: before ? nameFor(before) : '',
+        after: after ? nameFor(after) : '',
+        gap: size + (gap.axis === 'y' ? 'px tall' : 'px wide'),
+      },
+    };
+  }
 
   function find(path) {
     try {
@@ -275,6 +383,7 @@
     chip.hidden = !value;
     // She sees the words on the thing she picked; Claude gets the selector.
     var name = value && value.text ? '\u201c' + value.text.slice(0, 40) + '\u201d' : value && value.selector;
+    if (value && value.kind === 'space') name = pointedLabel;
     chipText.textContent = value ? 'Pointing at: ' + name : '';
   }
 
@@ -347,7 +456,8 @@
         outline.hidden = true;
         return;
       }
-      var box = event.target.getBoundingClientRect();
+      var space = spaceAt(event.target, event.clientX, event.clientY);
+      var box = space ? space.box : event.target.getBoundingClientRect();
       outline.style.top = box.top + 'px';
       outline.style.left = box.left + 'px';
       outline.style.width = box.width + 'px';
@@ -363,12 +473,19 @@
       event.preventDefault();
       event.stopPropagation();
       var target = event.target;
-      pointedPath = pathTo(target);
-      setPointed({
-        selector: describe(target),
-        text: String(target.innerText || target.textContent || '').trim().slice(0, 120),
-        html: String(target.outerHTML || '').slice(0, 500),
-      });
+      var space = spaceAt(target, event.clientX, event.clientY);
+      if (space) {
+        pointedLabel = space.label;
+        setPointed(space.payload);
+        pointedPath = pathTo(space.near);
+      } else {
+        setPointed({
+          selector: describe(target),
+          text: String(target.innerText || target.textContent || '').trim().slice(0, 120),
+          html: String(target.outerHTML || '').slice(0, 500),
+        });
+        pointedPath = pathTo(target);
+      }
       setPointing(false);
       input.focus();
     },

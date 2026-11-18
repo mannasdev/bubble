@@ -165,3 +165,23 @@ test('when the owner is the one typing, claude is told so', async () => {
   assert.notEqual(OWNER_PROMPT, SYSTEM_PROMPT);
   assert.doesNotMatch(OWNER_PROMPT, /ask Mannas|designer/);
 });
+
+test('buildPrompt describes an empty space she pointed at', () => {
+  assert.equal(
+    buildPrompt('add a testimonials section here', {
+      kind: 'space', selector: 'main > section.hero', before: 'p "A calmer way"', after: 'button.cta "Get started"', gap: '48px tall',
+    }),
+    'add a testimonials section here\n\nShe pointed at an empty space on the page, not at an element:\n' +
+      'inside: main > section.hero\nthe element before the space: p "A calmer way"\n' +
+      'the element after the space: button.cta "Get started"\nsize of the space: 48px tall',
+  );
+});
+
+test('buildPrompt handles a space with nothing before it', () => {
+  assert.equal(
+    buildPrompt('less room here', { kind: 'space', selector: 'main', before: '', after: 'h1 "Hi"', gap: '' }),
+    'less room here\n\nShe pointed at an empty space on the page, not at an element:\n' +
+      'inside: main\nthe element before the space: (nothing, it is at the start)\n' +
+      'the element after the space: h1 "Hi"\nsize of the space: unknown',
+  );
+});

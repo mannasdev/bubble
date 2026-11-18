@@ -32,6 +32,15 @@ function readBody(req) {
 function cleanPointed(p) {
   if (!p || typeof p !== 'object') return undefined;
   const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+  if (p.kind === 'space') {
+    return {
+      kind: 'space',
+      selector: str(p.selector, 300),
+      before: str(p.before, 200),
+      after: str(p.after, 200),
+      gap: str(p.gap, 40),
+    };
+  }
   return { selector: str(p.selector, 300), text: str(p.text, 120), html: str(p.html, MAX_POINTED_HTML) };
 }
 

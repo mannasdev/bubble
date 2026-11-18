@@ -57,6 +57,15 @@ export class RunError extends Error {
 /** The text handed to Claude: her words, plus the element she pointed at. */
 export function buildPrompt(text, pointed) {
   if (!pointed) return text;
+  if (pointed.kind === 'space') {
+    return (
+      `${text}\n\nShe pointed at an empty space on the page, not at an element:\n` +
+      `inside: ${pointed.selector}\n` +
+      `the element before the space: ${pointed.before || '(nothing, it is at the start)'}\n` +
+      `the element after the space: ${pointed.after || '(nothing, it is at the end)'}\n` +
+      `size of the space: ${pointed.gap || 'unknown'}`
+    );
+  }
   return (
     `${text}\n\nShe pointed at this element on the page:\n` +
     `selector: ${pointed.selector}\ntext: ${pointed.text}\nhtml: ${pointed.html}`

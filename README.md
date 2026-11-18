@@ -48,6 +48,13 @@ changes on the page is briefly outlined. When Claude is done the page
 refreshes and the pointer lands on what changed. The pointer is a visual
 effect: Claude edits files, it does not click on the page.
 
+## Pointing
+
+Point picks either a thing on the page or the empty space between things.
+Hovering a gap highlights the gap itself, so "add a section here" or "less
+room here" means that exact spot. Claude is told what sits before and after
+the space and how big it is.
+
 ## What she can and cannot ask for
 
 She can ask for anything that is a change to the project's files: text,
