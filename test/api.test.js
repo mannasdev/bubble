@@ -346,3 +346,39 @@ test('a listener that joins mid-change is told the steps so far', async (t) => {
   release();
   assert.match(text, /event: steps\ndata: \[\{"action":"edit","file":"a.css","before":"1","after":"2"\}\]/);
 });
+
+test('everything that happens is reported for the owner to watch', async (t) => {
+  const seen = [];
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-api-'));
+  const state = openState(projectDir);
+  let n = 0;
+  const handler = createApi({
+    state, projectDir, widgetPath: '/dev/null',
+    onActivity: (e) => seen.push(e),
+    run: async ({ onStep }) => {
+      if (++n === 2) throw new RunError('failed', 'Not logged in');
+      onStep({ action: 'edit', file: 'a.css', before: '1', after: '2' });
+      return { reply: 'done', sessionId: 's', files: ['a.css'] };
+    },
+  });
+  const server = http.createServer(handler);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  const post = (body) =>
+    fetch(`http://127.0.0.1:${server.address().port}/__bubble/send`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+  await post({ text: 'one', pointed: { selector: 'h1', text: 'Hi', html: '<h1>' }, replyTo: 'earlier' });
+  await post({ text: 'two' });
+  for (let i = 0; i < 100 && state.history().length < 4; i++) await sleep(10);
+  assert.deepEqual(seen, [
+    { type: 'message', text: 'one', pointed: { selector: 'h1', text: 'Hi', html: '<h1>' }, replyTo: 'earlier' },
+    { type: 'step', step: { action: 'edit', file: 'a.css', before: '1', after: '2' } },
+    { type: 'reply', text: 'done', files: ['a.css'] },
+    { type: 'message', text: 'two', pointed: undefined, replyTo: undefined },
+    { type: 'error', detail: 'failed: Not logged in' },
+  ]);
+});

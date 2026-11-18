@@ -4,6 +4,8 @@ import { openState } from './state.js';
 import { createProxy } from './proxy.js';
 import { createApi } from './api.js';
 import { startTunnel } from './tunnel.js';
+import { formatActivity } from './feed.js';
+import { stopAll } from './runner.js';
 
 export const USAGE = `Usage: bubble <port> [--local] [--host name] [--fresh]
 
@@ -70,6 +72,11 @@ export async function main(argv) {
     projectDir,
     widgetPath: fileURLToPath(new URL('../widget/widget.js', import.meta.url)),
     owner: args.noTunnel,
+    // Everything that happens in the bubble is printed here as it happens.
+    onActivity: (event) => {
+      const line = formatActivity(event, { color: process.stdout.isTTY, who: args.noTunnel ? 'you' : 'her' });
+      if (line) console.log(line);
+    },
   });
   const server = createProxy({ targetPort: args.port, key: state.key, handleApi, secureCookie: !args.noTunnel });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -99,6 +106,7 @@ export async function main(argv) {
 
   await new Promise((resolve) => {
     const stop = () => {
+      stopAll();
       tunnel?.stop();
       server.closeAllConnections();
       server.close();

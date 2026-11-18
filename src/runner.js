@@ -118,6 +118,14 @@ function stepFor(block, projectDir) {
   return null;
 }
 
+// Every claude process bubble has started and not yet seen exit.
+const live = new Set();
+
+/** Stop all work in progress, so nothing keeps editing after bubble is stopped. */
+export function stopAll() {
+  for (const child of live) child.kill('SIGKILL');
+}
+
 /** Run one request through a restricted, unattended Claude Code. */
 export function runClaude({
   projectDir,
@@ -145,6 +153,8 @@ export function runClaude({
 
   return new Promise((resolve, reject) => {
     const child = spawn(claudeBin, args, { cwd: projectDir, env: cleanEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
+    live.add(child);
+    child.on('exit', () => live.delete(child));
     // Her words go in on stdin, never as an argument: a message that starts
     // with a dash would otherwise be read as an option.
     child.stdin.on('error', () => {});

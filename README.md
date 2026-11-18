@@ -81,6 +81,12 @@ files, or edit `package.json`, lock files, config files, dotfiles or
 `scripts/`. If she asks for something that needs those, it tells her to ask
 you. It also cannot use your connectors, hooks or plugins.
 
+## Watching it live
+
+The terminal you started bubble in is a live feed: her message and what she
+pointed at, each file Claude looks at or edits (with what was replaced), and
+Claude's answer, each with the time.
+
 ## What you can see afterwards
 
 - `.bubble/log.md` in the project: each request, Claude's reply and the files

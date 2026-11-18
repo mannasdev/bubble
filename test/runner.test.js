@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runClaude, buildPrompt, RunError, SETTINGS_JSON, SYSTEM_PROMPT, OWNER_PROMPT } from '../src/runner.js';
+import { runClaude, stopAll, buildPrompt, RunError, SETTINGS_JSON, SYSTEM_PROMPT, OWNER_PROMPT } from '../src/runner.js';
 
 const FAKE = fileURLToPath(new URL('../fakes/claude.js', import.meta.url));
 const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-run-')));
@@ -210,4 +210,18 @@ test('the reply context reaches claude on stdin', async () => {
   const r = run('ok', { replyTo: 'The button is now blue.' });
   await r.promise;
   assert.match(r.recorded().stdin, /She is replying to this earlier message of yours: "The button is now blue\."/);
+});
+
+test('stopAll ends a run that is in progress and leaves no process behind', async () => {
+  const r = run('linger', { lingerMs: 60000 });
+  await r.promise;
+  const pid = Number(fs.readFileSync(path.join(r.projectDir, 'pid'), 'utf8'));
+  process.kill(pid, 0); // still alive: it lingers after answering
+  const hung = run('hang');
+  const failed = assert.rejects(hung.promise, (e) => e instanceof RunError && e.kind === 'failed');
+  await new Promise((done) => setTimeout(done, 150));
+  stopAll();
+  await failed;
+  await new Promise((done) => setTimeout(done, 300));
+  assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });

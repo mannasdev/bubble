@@ -50,7 +50,7 @@ function cleanPointed(p) {
  * Everything under /__bubble/: the widget file, the live event stream, and
  * the endpoint that takes a message and queues it for Claude.
  */
-export function createApi({ state, projectDir, run = runClaude, widgetPath, owner = false }) {
+export function createApi({ state, projectDir, run = runClaude, widgetPath, owner = false, onActivity = () => {} }) {
   const listeners = new Set();
   const queue = [];
   let working = false;
@@ -76,6 +76,7 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     if (steps.length >= MAX_STEPS) return;
     steps.push(step);
     emit('step', step);
+    onActivity({ type: 'step', step });
   };
 
   async function runJob(job) {
@@ -104,8 +105,9 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
       add('claude', result.reply, { files: result.files, ...(steps.length ? { steps } : {}) });
       steps = [];
       state.log(job.text, result.reply, result.files);
+      onActivity({ type: 'reply', text: result.reply, files: result.files });
     } catch (err) {
-      console.error(`[bubble] request failed: ${err?.message ?? err}`);
+      onActivity({ type: 'error', detail: String(err?.message ?? err) });
       steps = [];
       add('error', FAILED_TEXT);
       state.log(job.text, `(failed: ${err?.message ?? err})`, []);
@@ -139,7 +141,9 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     if (state.session() === null) state.clearSession();
     const replyTo = typeof body.replyTo === 'string' ? body.replyTo.trim().slice(0, MAX_REPLY_TO) : '';
     const entry = add('visitor', text, replyTo ? { replyTo } : {});
-    queue.push({ text, pointed: cleanPointed(body.pointed), replyTo: replyTo || undefined });
+    const job = { text, pointed: cleanPointed(body.pointed), replyTo: replyTo || undefined };
+    queue.push(job);
+    onActivity({ type: 'message', ...job });
     json(res, 202, { id: entry.id });
     drain();
   }
