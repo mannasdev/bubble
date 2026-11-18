@@ -45,3 +45,63 @@ export function formatActivity(event, { now = new Date(), color = false, who = '
   if (event.type === 'error') return head('failed', ['red', 'bold'], oneLine(event.detail));
   return '';
 }
+
+const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const CLEAR = '\r\x1b[2K';
+
+export function formatElapsed(ms) {
+  const seconds = Math.floor(ms / 1000);
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+/**
+ * The "still working" line at the bottom of the feed: a spinner, what Claude
+ * is doing, and for how long. It redraws in place, steps aside when a real
+ * line is printed, and does nothing when the output is not a terminal.
+ */
+export function createSpinner(stream, { color = false, clock = Date.now, interval = 100 } = {}) {
+  const live = Boolean(stream.isTTY);
+  let label = '';
+  let since = 0;
+  let frame = 0;
+  let timer = null;
+  const paint = (text, code) => (color ? `\x1b[${code}m${text}\x1b[0m` : text);
+
+  const draw = () => {
+    if (!live || !label) return;
+    const spin = paint(FRAMES[frame % FRAMES.length], CODES.cyan);
+    stream.write(`${CLEAR}${' '.repeat(10)}${spin} ${label} ${paint(formatElapsed(clock() - since), CODES.dim)}`);
+  };
+  const halt = () => {
+    clearInterval(timer);
+    timer = null;
+    if (live && label) stream.write(CLEAR);
+    label = '';
+  };
+  const tick = () => {
+    frame++;
+    draw();
+  };
+
+  return {
+    /** Show this status; an empty one means the work is over. */
+    set(text) {
+      if (!live) return;
+      if (!text) return halt();
+      if (!label) {
+        since = clock();
+        timer = setInterval(tick, interval);
+        timer.unref?.();
+      }
+      label = String(text).toLowerCase();
+      draw();
+    },
+    tick,
+    /** Print a normal line above the spinner. */
+    print(line) {
+      stream.write(`${live && label ? CLEAR : ''}${line}\n`);
+      draw();
+    },
+    stop: halt,
+  };
+}

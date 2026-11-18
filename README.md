@@ -85,7 +85,9 @@ you. It also cannot use your connectors, hooks or plugins.
 
 The terminal you started bubble in is a live feed: her message and what she
 pointed at, each file Claude looks at or edits (with what was replaced), and
-Claude's answer, each with the time.
+Claude's answer, each with the time. While Claude is working, the last line
+is a spinner saying what it is doing and for how long. The bubble shows the
+same status with its own running timer.
 
 ## What you can see afterwards
 

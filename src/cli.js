@@ -4,7 +4,7 @@ import { openState } from './state.js';
 import { createProxy } from './proxy.js';
 import { createApi } from './api.js';
 import { startTunnel } from './tunnel.js';
-import { formatActivity } from './feed.js';
+import { formatActivity, createSpinner } from './feed.js';
 import { stopAll } from './runner.js';
 
 export const USAGE = `Usage: bubble <port> [--local] [--host name] [--fresh]
@@ -67,6 +67,7 @@ export async function main(argv) {
   if (args.fresh) state.clearSession();
   if (args.host) state.setHost(args.host);
 
+  const spinner = createSpinner(process.stdout, { color: process.stdout.isTTY });
   const handleApi = createApi({
     state,
     projectDir,
@@ -74,8 +75,10 @@ export async function main(argv) {
     owner: args.noTunnel,
     // Everything that happens in the bubble is printed here as it happens.
     onActivity: (event) => {
+      // While Claude works, a spinner with a timer sits under the last line.
+      if (event.type === 'status') return spinner.set(event.text);
       const line = formatActivity(event, { color: process.stdout.isTTY, who: args.noTunnel ? 'you' : 'her' });
-      if (line) console.log(line);
+      if (line) spinner.print(line);
     },
   });
   const server = createProxy({ targetPort: args.port, key: state.key, handleApi, secureCookie: !args.noTunnel });
@@ -106,6 +109,7 @@ export async function main(argv) {
 
   await new Promise((resolve) => {
     const stop = () => {
+      spinner.stop();
       stopAll();
       tunnel?.stop();
       server.closeAllConnections();

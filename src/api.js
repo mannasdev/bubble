@@ -64,6 +64,7 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
   const setStatus = (text) => {
     status = text;
     emit('status', text);
+    onActivity({ type: 'status', text });
   };
   const add = (role, text, extra = {}) => {
     const entry = { id: crypto.randomUUID(), role, text, at: new Date().toISOString(), ...extra };

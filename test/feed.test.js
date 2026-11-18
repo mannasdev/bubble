@@ -51,3 +51,82 @@ test('colour adds escape codes only when asked', () => {
   assert.doesNotMatch(f({ type: 'reply', text: 'x' }), /\x1b/);
   assert.match(f({ type: 'reply', text: 'x' }, { color: true }), /\x1b\[/);
 });
+
+import { createSpinner, formatElapsed } from '../src/feed.js';
+
+function fakeStream(isTTY = true) {
+  const out = [];
+  return { isTTY, out, write: (s) => out.push(s), text: () => out.join('') };
+}
+
+test('formatElapsed counts seconds, then minutes and seconds', () => {
+  assert.equal(formatElapsed(0), '0s');
+  assert.equal(formatElapsed(12_400), '12s');
+  assert.equal(formatElapsed(75_000), '1m 15s');
+});
+
+test('the spinner shows what claude is doing and for how long', () => {
+  const stream = fakeStream();
+  let now = 1000;
+  const sp = createSpinner(stream, { color: false, clock: () => now });
+  sp.set('Thinking…');
+  assert.match(stream.out.at(-1), /^\r\x1b\[2K {10}\S thinking… 0s$/);
+  now += 12_000;
+  sp.tick();
+  assert.match(stream.out.at(-1), /^\r\x1b\[2K {10}\S thinking… 12s$/);
+  sp.set('Making the change…');
+  assert.match(stream.out.at(-1), /making the change… 12s$/);
+  sp.stop();
+});
+
+test('the spinner frame changes on each tick', () => {
+  const stream = fakeStream();
+  const sp = createSpinner(stream, { color: false, clock: () => 0 });
+  sp.set('Thinking…');
+  const a = stream.out.at(-1);
+  sp.tick();
+  assert.notEqual(stream.out.at(-1), a);
+  sp.stop();
+});
+
+test('a printed line replaces the spinner, which then comes back under it', () => {
+  const stream = fakeStream();
+  const sp = createSpinner(stream, { color: false, clock: () => 0 });
+  sp.set('Thinking…');
+  stream.out.length = 0;
+  sp.print('14:02:11          looked at index.html');
+  assert.equal(stream.out[0], '\r\x1b[2K14:02:11          looked at index.html\n');
+  assert.match(stream.out[1], /thinking… 0s$/);
+  sp.stop();
+});
+
+test('an empty status clears the spinner and the timer starts over next time', () => {
+  const stream = fakeStream();
+  let now = 0;
+  const sp = createSpinner(stream, { color: false, clock: () => now });
+  sp.set('Thinking…');
+  now = 30_000;
+  sp.set('');
+  assert.equal(stream.out.at(-1), '\r\x1b[2K');
+  stream.out.length = 0;
+  sp.print('line');
+  assert.deepEqual(stream.out, ['line\n']);
+  now = 40_000;
+  sp.set('Thinking…');
+  assert.match(stream.out.at(-1), /thinking… 0s$/);
+  sp.stop();
+});
+
+test('when output is not a terminal there is no spinner, only the lines', () => {
+  const stream = fakeStream(false);
+  const sp = createSpinner(stream, { color: false, clock: () => 0 });
+  sp.set('Thinking…');
+  sp.tick();
+  sp.print('line');
+  sp.set('');
+  assert.deepEqual(stream.out, ['line\n']);
+});
+
+test('status events are not lines of their own', () => {
+  assert.equal(formatActivity({ type: 'status', text: 'Thinking…' }, { now: at, color: false }), '');
+});

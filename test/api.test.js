@@ -374,7 +374,8 @@ test('everything that happens is reported for the owner to watch', async (t) => 
   await post({ text: 'one', pointed: { selector: 'h1', text: 'Hi', html: '<h1>' }, replyTo: 'earlier' });
   await post({ text: 'two' });
   for (let i = 0; i < 100 && state.history().length < 4; i++) await sleep(10);
-  assert.deepEqual(seen, [
+  assert.deepEqual(seen.filter((e) => e.type === 'status').map((e) => e.text), ['Thinking…', '', 'Thinking…', '']);
+  assert.deepEqual(seen.filter((e) => e.type !== 'status'), [
     { type: 'message', text: 'one', pointed: { selector: 'h1', text: 'Hi', html: '<h1>' }, replyTo: 'earlier' },
     { type: 'step', step: { action: 'edit', file: 'a.css', before: '1', after: '2' } },
     { type: 'reply', text: 'done', files: ['a.css'] },

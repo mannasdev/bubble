@@ -90,6 +90,7 @@
     '.del{background:var(--del-bg);color:var(--del);text-decoration:line-through}',
     '.add{background:var(--add-bg);color:var(--add)}',
     '.status .top{display:flex;align-items:center;gap:8px}',
+    '.when{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}',
     '.live-log{display:flex;flex-direction:column;gap:3px;font-size:12px}',
     '.live-log:empty{display:none}',
     '.status{display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:86%;margin:0 12px 10px;padding:8px 12px;align-self:flex-start;background:var(--mine);border-radius:16px 16px 16px 5px;font-size:13px;animation:rise .3s ' + EASE + ' both}',
@@ -382,7 +383,8 @@
   dots.append(el('i'), el('i'), el('i'));
   var statusText = el('span', 'what');
   var statusTop = el('div', 'top');
-  statusTop.append(dots, statusText);
+  var statusTime = el('span', 'when');
+  statusTop.append(dots, statusText, statusTime);
   var liveLog = el('div', 'live-log');
   statusLine.append(statusTop, liveLog);
   var chip = el('div', 'chip');
@@ -439,6 +441,8 @@
   var pointing = false;
   var replyTo = null; // the message of Claude's she is answering
   var liveSteps = [];
+  var workSince = 0;
+  var workClock = null;
   var isOpen = false;
   var count = 0;
 
@@ -909,6 +913,19 @@
     statusLine.hidden = !text;
     wrap.classList.toggle('working', !!text);
     scrollDown();
+    // A running count of seconds, so a long wait still looks alive.
+    if (text && !workClock) {
+      workSince = Date.now();
+      statusTime.textContent = '0s';
+      workClock = window.setInterval(function () {
+        var seconds = Math.floor((Date.now() - workSince) / 1000);
+        statusTime.textContent = seconds < 60 ? seconds + 's' : Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+      }, 1000);
+    }
+    if (!text && workClock) {
+      window.clearInterval(workClock);
+      workClock = null;
+    }
     if (text && !working) startWork();
     if (!text && working) stopWork();
   });
