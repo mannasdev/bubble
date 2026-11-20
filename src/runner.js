@@ -55,13 +55,22 @@ export class RunError extends Error {
 }
 
 /** The text handed to Claude: her words, plus the element she pointed at. */
-export function buildPrompt(text, pointed, replyTo) {
+export function buildPrompt(text, pointed, replyTo, notes) {
+  const since = notes?.length ? `(Since your last reply: ${notes.join(' ')})\n\n` : '';
   const reply = replyTo ? `\n\n(She is replying to this earlier message of yours: "${replyTo}")` : '';
-  return describePointed(text, pointed) + reply;
+  return since + describePointed(text, pointed) + reply;
 }
 
 function describePointed(text, pointed) {
   if (!pointed) return text;
+  if (pointed.kind === 'area') {
+    return (
+      `${text}\n\nShe drew a box on the page around an area, not one element:\n` +
+      `the box: ${pointed.box}\n` +
+      `what is inside it: ${pointed.inside || '(nothing, it is empty space)'}\n` +
+      `text inside it: ${pointed.text || '(none)'}`
+    );
+  }
   if (pointed.kind === 'space') {
     return (
       `${text}\n\nShe pointed at an empty space on the page, not at an element:\n` +
@@ -133,6 +142,7 @@ export function runClaude({
   pointed,
   sessionId,
   replyTo,
+  notes,
   onStatus,
   onStep,
   owner = false,
@@ -158,7 +168,7 @@ export function runClaude({
     // Her words go in on stdin, never as an argument: a message that starts
     // with a dash would otherwise be read as an option.
     child.stdin.on('error', () => {});
-    child.stdin.end(buildPrompt(text, pointed, replyTo));
+    child.stdin.end(buildPrompt(text, pointed, replyTo, notes));
     const files = [];
     let result = null;
     let sawWork = false;

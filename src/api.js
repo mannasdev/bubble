@@ -35,6 +35,9 @@ function readBody(req) {
 function cleanPointed(p) {
   if (!p || typeof p !== 'object') return undefined;
   const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+  if (p.kind === 'area') {
+    return { kind: 'area', box: str(p.box, 80), inside: str(p.inside, 600), text: str(p.text, 300) };
+  }
   if (p.kind === 'space') {
     return {
       kind: 'space',
@@ -100,8 +103,21 @@ export function createApi({
   })();
   const saveChanges = () => fs.writeFileSync(changesFile, JSON.stringify(changes, null, 2));
 
+  // Things Claude should hear about before her next message, such as an undo
+  // it did not do itself. Kept on disk so a restart does not lose them.
+  const notesFile = path.join(projectDir, '.bubble', 'notes.json');
+  let notes = (() => {
+    try {
+      return JSON.parse(fs.readFileSync(notesFile, 'utf8'));
+    } catch {
+      return [];
+    }
+  })();
+  const saveNotes = () => fs.writeFileSync(notesFile, JSON.stringify(notes));
+
   async function runJob(job) {
     steps = [];
+    const told = notes;
     const before = snapshots ? await snapshots.take() : null;
     const attempt = (sessionId) =>
       run({
@@ -109,6 +125,7 @@ export function createApi({
         text: job.text,
         pointed: job.pointed,
         replyTo: job.replyTo,
+        notes: told.length ? told : undefined,
         sessionId,
         onStatus: setStatus,
         onStep: addStep,
@@ -124,6 +141,10 @@ export function createApi({
         result = await attempt(null);
       }
       if (result.sessionId) state.setSession(result.sessionId);
+      if (told.length) {
+        notes = notes.slice(told.length);
+        saveNotes();
+      }
       const after = before ? await snapshots.take() : null;
       let change;
       if (before && after && before !== after) {
@@ -193,6 +214,9 @@ export function createApi({
       if (!result.ok) return json(res, 409, { error: result.reason });
       change.undone = true;
       saveChanges();
+      const touched = change.files?.length ? ` (${change.files.join(', ')})` : '';
+      notes = [...notes, `Your change for "${change.request}" was undone. The files it touched${touched} are back to how they were before that change.`];
+      saveNotes();
       add('note', `Undid \u201c${change.request}\u201d`, { undid: id });
       state.log(`(undo) ${change.request}`, 'Undid this change.', change.files ?? []);
       onActivity({ type: 'undo', text: change.request, files: change.files ?? [] });

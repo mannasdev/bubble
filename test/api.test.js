@@ -477,3 +477,37 @@ test('undo is refused while claude is working, for an unknown change, and when i
   assert.deepEqual(await busy.json(), { error: 'busy' });
   release();
 });
+
+test('a drawn box is passed on, trimmed', async (t) => {
+  let got;
+  const a = await setup(async (job) => {
+    got = job.pointed;
+    return { reply: 'ok', sessionId: 's', files: [] };
+  });
+  t.after(a.close);
+  await a.send({ text: 'x', pointed: { kind: 'area', box: '1×1 at 0,0', inside: 'y'.repeat(900), text: 'z'.repeat(900), html: '<b>' } });
+  await a.settled(2);
+  assert.deepEqual(got, { kind: 'area', box: '1×1 at 0,0', inside: 'y'.repeat(600), text: 'z'.repeat(300) });
+});
+
+test('after an undo, the next request tells claude what was undone, once', async (t) => {
+  const seenNotes = [];
+  const a = await undoSetup(t, {
+    run: async ({ notes }) => {
+      seenNotes.push(notes);
+      return { reply: 'ok', sessionId: 's', files: ['style.css'] };
+    },
+  });
+  await a.post('send', { text: 'blue gradient on the card' });
+  const h = await a.settled(2);
+  await a.post('undo', { id: h[1].change });
+  await a.post('send', { text: 'do it again but darker' });
+  await a.settled(5);
+  await a.post('send', { text: 'thanks' });
+  await a.settled(7);
+  assert.deepEqual(seenNotes, [
+    undefined,
+    ['Your change for "blue gradient on the card" was undone. The files it touched (style.css) are back to how they were before that change.'],
+    undefined,
+  ]);
+});

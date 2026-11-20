@@ -225,3 +225,30 @@ test('stopAll ends a run that is in progress and leaves no process behind', asyn
   await new Promise((done) => setTimeout(done, 300));
   assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });
+
+test('buildPrompt describes a box she drew', () => {
+  assert.equal(
+    buildPrompt('make this section feel lighter', {
+      kind: 'area', box: '420×260 at 40,380 on a 1280×800 screen', inside: 'h2 "Selected work"; article.card "Oak & Ember"', text: 'Selected work Oak & Ember',
+    }),
+    'make this section feel lighter\n\nShe drew a box on the page around an area, not one element:\n' +
+      'the box: 420×260 at 40,380 on a 1280×800 screen\n' +
+      'what is inside it: h2 "Selected work"; article.card "Oak & Ember"\n' +
+      'text inside it: Selected work Oak & Ember',
+  );
+});
+
+test('buildPrompt handles a drawn box with nothing in it', () => {
+  assert.equal(
+    buildPrompt('put a photo here', { kind: 'area', box: '200×100 at 0,0 on a 800×600 screen', inside: '', text: '' }),
+    'put a photo here\n\nShe drew a box on the page around an area, not one element:\n' +
+      'the box: 200×100 at 0,0 on a 800×600 screen\nwhat is inside it: (nothing, it is empty space)\ntext inside it: (none)',
+  );
+});
+
+test('buildPrompt puts notes about what happened since before her words', () => {
+  assert.equal(
+    buildPrompt('again but darker', null, null, ['She undid your change for "x". The files it touched (a.css) are back to how they were before that change.']),
+    '(Since your last reply: She undid your change for "x". The files it touched (a.css) are back to how they were before that change.)\n\nagain but darker',
+  );
+});

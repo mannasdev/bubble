@@ -10,7 +10,7 @@
     ':host{all:initial}',
     '*{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}',
     // Tokens. The panel is frosted glass so it sits on any site; one accent colour.
-    '.wrap,.outline,.cursor{--accent:#2f6fed;--accent-soft:rgba(47,111,237,.14);--accent-line:rgba(47,111,237,.4)}',
+    '.wrap,.outline,.cursor,.box,.sheet{--accent:#2f6fed;--accent-soft:rgba(47,111,237,.14);--accent-line:rgba(47,111,237,.4)}',
     '.wrap{--del:#b3261e;--del-bg:rgba(214,60,50,.1);--add:#167a4a;--add-bg:rgba(43,182,115,.14);--bg:rgba(255,255,255,.4);--field:rgba(255,255,255,.42);--fg:#141418;--muted:#575763;--line:rgba(255,255,255,.55);--edge:rgba(255,255,255,.6);--mine:rgba(255,255,255,.55);--sheen:.32;--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
     'position:fixed;right:16px;bottom:16px;z-index:2147483647;font-size:14px;line-height:1.4;color:var(--fg);--ox:100%;--oy:100%;--dy:14px}',
     // It can be dragged to any corner; these move it and flip how the panel opens.
@@ -25,7 +25,7 @@
     '.dragging .toggle{transform:scale(1.06);box-shadow:0 20px 40px -10px rgba(0,0,0,.55)}',
     '.dragging .toggle::after{animation:none}',
     '.dragging .panel{box-shadow:0 40px 90px -16px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.14)}',
-    '@media (prefers-color-scheme:dark){.wrap,.outline,.cursor{--accent:#5b8cff;--accent-soft:rgba(91,140,255,.18);--accent-line:rgba(91,140,255,.5)}',
+    '@media (prefers-color-scheme:dark){.wrap,.outline,.cursor,.box,.sheet{--accent:#5b8cff;--accent-soft:rgba(91,140,255,.18);--accent-line:rgba(91,140,255,.5)}',
     '.wrap{--del:#ff9a90;--del-bg:rgba(255,120,110,.13);--add:#6fdda6;--add-bg:rgba(60,200,130,.14);--bg:rgba(26,26,34,.6);--field:rgba(255,255,255,.07);--fg:#f6f6f8;--muted:#b4b4c0;--line:rgba(255,255,255,.13);--edge:rgba(255,255,255,.2);--mine:rgba(255,255,255,.11);--sheen:.14;--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
     'button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}',
     'button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
@@ -137,6 +137,14 @@
     '.point:hover{background:var(--mine);color:var(--fg)}',
     '.point:active{transform:scale(.96)}',
     '.point.on{background:var(--accent-soft);color:var(--accent);animation:nudge 1.2s ease-in-out infinite}',
+    '.tools{display:flex;gap:2px}',
+    // Drawing a box: a clear sheet over the page catches the drag.
+    '.sheet{position:fixed;inset:0;z-index:2147483646;cursor:crosshair;touch-action:none;background:rgba(0,0,0,.04)}',
+    '.box{position:fixed;pointer-events:none;z-index:2147483646;border:2px dashed var(--accent);background:var(--accent-soft);border-radius:6px;box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 18px var(--accent-line)}',
+    '.box.kept{animation:boxin .3s ' + SPRING + '}',
+    '@keyframes boxin{from{transform:scale(.96);opacity:.4}}',
+    '.box b{position:absolute;left:-2px;bottom:100%;margin-bottom:4px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;line-height:1;padding:4px 7px;border-radius:6px;white-space:nowrap}',
+    '.box.low b{bottom:auto;top:4px;left:4px;margin:0}',
     '@keyframes nudge{50%{box-shadow:0 0 0 4px var(--accent-soft)}}',
     '.send{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;overflow:hidden;transition:transform .2s ' + SPRING + ',opacity .2s,filter .2s}',
     '.send:hover{transform:scale(1.08)}',
@@ -177,6 +185,7 @@
     close: 'M18 6 6 18M6 6l12 12',
     send: 'M12 19V5M5 12l7-7 7 7',
     point: 'M4 4l6.5 15.5 2.3-6.7 6.7-2.3L4 4z',
+    box: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3',
     spark: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z',
     reply: 'M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3',
     down: 'M6 9l6 6 6-6',
@@ -401,7 +410,26 @@
     });
   }
 
-  window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf, cornerFor: cornerFor };
+  // The box between where a drag started and where it is now, in any direction.
+  function boxBetween(x1, y1, x2, y2) {
+    return { left: Math.min(x1, x2), top: Math.min(y1, y2), right: Math.max(x1, x2), bottom: Math.max(y1, y2) };
+  }
+
+  // Which of these boxes sit at least 80% inside the drawn one.
+  function mostlyInside(rects, box) {
+    var picked = [];
+    for (var i = 0; i < rects.length; i++) {
+      var r = rects[i];
+      var area = (r.right - r.left) * (r.bottom - r.top);
+      if (area <= 0) continue;
+      var w = Math.min(r.right, box.right) - Math.max(r.left, box.left);
+      var h = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top);
+      if (w > 0 && h > 0 && (w * h) / area >= 0.8) picked.push(i);
+    }
+    return picked;
+  }
+
+  window.__bubble = { boxLabel: boxLabel, boxBetween: boxBetween, mostlyInside: mostlyInside, describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf, cornerFor: cornerFor };
 
   var host = el('div');
   host.id = '__bubble_root';
@@ -468,7 +496,13 @@
   sendBtn.setAttribute('aria-label', 'Send');
   sendBtn.append(icon('send', 16));
   sendBtn.disabled = true;
-  row.append(pointBtn, sendBtn);
+  var drawBtn = el('button', 'point');
+  var drawLabel = el('span', '', 'Draw');
+  drawBtn.append(icon('box', 15), drawLabel);
+  drawBtn.setAttribute('title', 'Drag a box around the part you mean');
+  var tools = el('div', 'tools');
+  tools.append(pointBtn, drawBtn);
+  row.append(tools, sendBtn);
   composer.append(input, row);
   form.append(composer);
   panel.append(head, list, changesView, statusLine, replyChip, chip, form);
@@ -490,6 +524,11 @@
   var pointed = null;
   var pointedPath = null; // where she pointed, for the next message
   var pointedLabel = ''; // how an empty space she pointed at is described to her
+  var drawing = false;
+  var sheet = null; // the layer that catches the drag while drawing
+  var liveBox = null; // the box while it is being dragged
+  var keptBox = null; // the box she drew, shown until the message is sent
+  var keptAt = null; // where it is, in page coordinates so it scrolls with the page
   var workPath = null; // where she pointed, for the message being worked on
   var changedPath = null; // the last thing seen changing on the page
   var working = false;
@@ -801,7 +840,9 @@
     // She sees the words on the thing she picked; Claude gets the selector.
     var name = value && value.text ? '\u201c' + value.text.slice(0, 40) + '\u201d' : value && value.selector;
     if (value && value.kind === 'space') name = pointedLabel;
-    chipText.textContent = value ? 'Pointing at: ' + name : '';
+    if (value && value.kind === 'area') name = pointedLabel;
+    chipText.textContent = value ? (value.kind === 'area' ? 'Drew a box ' : 'Pointing at: ') + name : '';
+    if (!value || value.kind !== 'area') dropBox();
   }
 
   function setReply(text) {
@@ -928,7 +969,157 @@
     if (open) renderChanges();
   }
 
+  function placeBox(node, b) {
+    node.style.left = b.left + 'px';
+    node.style.top = b.top + 'px';
+    node.style.width = Math.max(b.right - b.left, 1) + 'px';
+    node.style.height = Math.max(b.bottom - b.top, 1) + 'px';
+    node.classList.toggle('low', b.top < 26);
+  }
+
+  function dropBox() {
+    if (keptBox) keptBox.remove();
+    keptBox = null;
+    keptAt = null;
+  }
+
+  // Keep the drawn box over the same part of the page when it scrolls.
+  if (window.addEventListener) window.addEventListener(
+    'scroll',
+    function () {
+      if (!keptBox || !keptAt) return;
+      var x = window.scrollX || 0;
+      var y = window.scrollY || 0;
+      placeBox(keptBox, { left: keptAt.left - x, top: keptAt.top - y, right: keptAt.right - x, bottom: keptAt.bottom - y });
+    },
+    true,
+  );
+
+  function setDrawing(on) {
+    if (on && pointing) setPointing(false);
+    drawing = on;
+    drawBtn.classList.toggle('on', on);
+    drawLabel.textContent = on ? 'Drag a box\u2026' : 'Draw';
+    if (on && !sheet) {
+      sheet = el('div', 'sheet');
+      sheet.addEventListener('pointerdown', drawStart);
+      root.append(sheet);
+    }
+    if (!on && sheet) {
+      sheet.remove();
+      sheet = null;
+      if (liveBox) liveBox.remove();
+      liveBox = null;
+    }
+  }
+
+  var drawFrom = null;
+
+  function drawStart(event) {
+    if (event.button) return;
+    event.preventDefault();
+    drawFrom = { x: event.clientX, y: event.clientY, id: event.pointerId };
+    if (sheet.setPointerCapture) sheet.setPointerCapture(event.pointerId);
+    sheet.addEventListener('pointermove', drawMove);
+    sheet.addEventListener('pointerup', drawEnd);
+    sheet.addEventListener('pointercancel', drawCancel);
+    liveBox = el('div', 'box');
+    liveBox.append(el('b', '', '0 \u00d7 0'));
+    root.append(liveBox);
+    placeBox(liveBox, boxBetween(drawFrom.x, drawFrom.y, drawFrom.x, drawFrom.y));
+  }
+
+  function drawMove(event) {
+    if (!drawFrom || event.pointerId !== drawFrom.id) return;
+    var b = boxBetween(drawFrom.x, drawFrom.y, event.clientX, event.clientY);
+    placeBox(liveBox, b);
+    liveBox.firstChild.textContent = Math.round(b.right - b.left) + ' \u00d7 ' + Math.round(b.bottom - b.top);
+  }
+
+  function drawCancel() {
+    drawFrom = null;
+    setDrawing(false);
+  }
+
+  function drawEnd(event) {
+    if (!drawFrom || event.pointerId !== drawFrom.id) return;
+    var b = boxBetween(drawFrom.x, drawFrom.y, event.clientX, event.clientY);
+    drawFrom = null;
+    setDrawing(false);
+    if (b.right - b.left < 8 || b.bottom - b.top < 8) return; // a click, not a box
+    useBox(b);
+  }
+
+  // A heading's box spans the whole page width even when its words are short,
+  // so for plain text the words themselves are measured.
+  function tightRect(node) {
+    var box = node.getBoundingClientRect();
+    if (node.children.length || !words(node) || !document.createRange) return box;
+    var range = document.createRange();
+    range.selectNodeContents(node);
+    var text = range.getBoundingClientRect();
+    return text.width && text.height ? text : box;
+  }
+
+  // "around “Selected work” and 2 images": what she sees on the chip.
+  function boxLabel(shown) {
+    if (!shown.length) return 'around empty space';
+    var named = shown.filter(function (node) {
+      return words(node);
+    });
+    var parts = named.slice(0, 2).map(shortFor);
+    var rest = shown.length - parts.length;
+    if (rest) {
+      var kind = kindOf(shown[shown.length - 1]);
+      parts.push(rest + (parts.length ? ' more' : ' ' + kind + (rest > 1 ? 's' : '')));
+    }
+    return 'around ' + (parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]);
+  }
+
+  // Work out what the box covers and attach it to the next message.
+  function useBox(b) {
+    var found = [];
+    var all = document.body ? document.body.getElementsByTagName('*') : [];
+    var rects = [];
+    var nodes = [];
+    for (var i = 0; i < all.length && i < 4000; i++) {
+      var node = all[i];
+      if (node === host || /^(SCRIPT|STYLE|LINK|META|NOSCRIPT|BR)$/.test(node.tagName)) continue;
+      nodes.push(node);
+      rects.push(tightRect(node));
+    }
+    mostlyInside(rects, b).forEach(function (index) {
+      var node = nodes[index];
+      // Only the outermost things: a card, not also its heading and its text.
+      for (var j = 0; j < found.length; j++) {
+        if (found[j].contains(node)) return;
+      }
+      found.push(node);
+    });
+    var shown = found.slice(0, 8);
+    var text = shown.map(words).join(' ').slice(0, 300);
+    var x = window.scrollX || 0;
+    var y = window.scrollY || 0;
+    var size = Math.round(b.right - b.left) + '\u00d7' + Math.round(b.bottom - b.top);
+    pointedLabel = boxLabel(shown);
+    setPointed({
+      kind: 'area',
+      box: size + ' at ' + Math.round(b.left + x) + ',' + Math.round(b.top + y) + ' on a ' + window.innerWidth + '\u00d7' + window.innerHeight + ' screen',
+      inside: shown.map(nameFor).join('; ') + (found.length > 8 ? '; and ' + (found.length - 8) + ' more' : ''),
+      text: text,
+    });
+    pointedPath = shown.length ? pathTo(shown[0]) : null;
+    dropBox();
+    keptBox = el('div', 'box kept');
+    keptBox.append(el('b', '', size));
+    keptAt = { left: b.left + x, top: b.top + y, right: b.right + x, bottom: b.bottom + y };
+    placeBox(keptBox, b);
+    root.append(keptBox);
+    input.focus();
+  }
+
   function setPointing(on) {
+    if (on && drawing) setDrawing(false);
     pointing = on;
     pointBtn.classList.toggle('on', on);
     pointLabel.textContent = on ? 'Click something…' : 'Point';
@@ -1041,6 +1232,7 @@
   });
   close.addEventListener('click', function () {
     setPointing(false);
+    setDrawing(false);
     setOpen(false);
   });
   sendBtn.addEventListener('click', send);
@@ -1053,6 +1245,9 @@
   });
   pointBtn.addEventListener('click', function () {
     setPointing(!pointing);
+  });
+  drawBtn.addEventListener('click', function () {
+    setDrawing(!drawing);
   });
   histBtn.addEventListener('click', function () {
     setChangesOpen(!showingChanges);
@@ -1113,6 +1308,7 @@
     'keydown',
     function (event) {
       if (pointing && event.key === 'Escape') setPointing(false);
+      if (drawing && event.key === 'Escape') drawCancel();
     },
     true,
   );

@@ -263,3 +263,36 @@ test('an undo note is shown as a quiet line', () => {
   assert.equal(node.className, 'msg note');
   assert.equal(node.textContent, 'Undid “x”');
 });
+
+test('mostlyInside picks the things a drawn box covers', () => {
+  const { w } = boot();
+  const box = { left: 100, top: 100, right: 400, bottom: 300 };
+  const rects = [
+    { left: 110, top: 110, right: 390, bottom: 290 }, // fully inside
+    { left: 90, top: 120, right: 200, bottom: 200 }, // 91% inside
+    { left: 350, top: 250, right: 500, bottom: 350 }, // a corner only
+    { left: 600, top: 600, right: 700, bottom: 700 }, // elsewhere
+    { left: 150, top: 150, right: 150, bottom: 150 }, // has no size
+  ];
+  assert.deepEqual([...w.__bubble.mostlyInside(rects, box)], [0, 1]);
+});
+
+test('boxBetween turns a drag in any direction into a box', () => {
+  const { w } = boot();
+  assert.deepEqual({ ...w.__bubble.boxBetween(300, 250, 100, 50) }, { left: 100, top: 50, right: 300, bottom: 250 });
+});
+
+test('boxLabel names what a drawn box covers in plain words', () => {
+  const { w } = boot();
+  const make = (tag, text) => {
+    const n = new El(tag);
+    if (text) n.textContent = text;
+    return n;
+  };
+  const L = (nodes) => w.__bubble.boxLabel(nodes);
+  assert.equal(L([]), 'around empty space');
+  assert.equal(L([make('div'), make('div')]), 'around 2 blocks');
+  assert.equal(L([make('img')]), 'around 1 image');
+  assert.equal(L([make('h2', 'Selected work'), make('div'), make('div')]), 'around \u201cSelected work\u201d and 2 more');
+  assert.equal(L([make('h2', 'A'), make('p', 'B')]), 'around \u201cA\u201d and \u201cB\u201d');
+});

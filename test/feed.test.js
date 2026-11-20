@@ -130,3 +130,14 @@ test('when output is not a terminal there is no spinner, only the lines', () => 
 test('status events are not lines of their own', () => {
   assert.equal(formatActivity({ type: 'status', text: 'Thinking…' }, { now: at, color: false }), '');
 });
+
+test('a drawn box in the feed', () => {
+  assert.equal(
+    f({ type: 'message', text: 'lighter', pointed: { kind: 'area', box: '420×260 at 40,380', inside: 'h2 "Selected work"', text: '' } }),
+    '14:02:11  her     lighter\n                  drew a box around h2 "Selected work"',
+  );
+  assert.equal(
+    f({ type: 'message', text: 'photo here', pointed: { kind: 'area', box: '200×100 at 0,0', inside: '', text: '' } }),
+    '14:02:11  her     photo here\n                  drew a box around empty space (200×100 at 0,0)',
+  );
+});

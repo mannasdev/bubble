@@ -8,6 +8,7 @@ const oneLine = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
 const two = (n) => String(n).padStart(2, '0');
 
 function pointedText(pointed) {
+  if (pointed.kind === 'area') return `drew a box around ${pointed.inside || `empty space (${pointed.box})`}`;
   if (pointed.kind === 'space') {
     const between = `${pointed.before || 'the start'} and ${pointed.after || 'the end'}`;
     return `pointing at the space between ${between}${pointed.gap ? ` (${pointed.gap})` : ''}`;
