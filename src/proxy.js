@@ -17,7 +17,7 @@ function withoutAccessCookie(header) {
   const kept = header
     .split(';')
     .map((p) => p.trim())
-    .filter((p) => p && !p.startsWith('bubble_k='));
+    .filter((p) => p && !/^bubble_[0-9a-f]{8}=/.test(p));
   return kept.length ? kept.join('; ') : undefined;
 }
 

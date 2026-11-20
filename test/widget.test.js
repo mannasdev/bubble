@@ -296,3 +296,36 @@ test('boxLabel names what a drawn box covers in plain words', () => {
   assert.equal(L([make('h2', 'Selected work'), make('div'), make('div')]), 'around \u201cSelected work\u201d and 2 more');
   assert.equal(L([make('h2', 'A'), make('p', 'B')]), 'around \u201cA\u201d and \u201cB\u201d');
 });
+
+test('glides are unhurried, and longer trips take a little longer', () => {
+  const { w } = boot();
+  const g = w.__bubble.glideTime;
+  assert.equal(g(0), 900);
+  assert.ok(g(400) > g(100));
+  assert.equal(g(5000), 1900);
+});
+
+test('a glide eases in and out and follows a curve from start to end', () => {
+  const { w } = boot();
+  const { easeInOut, curvePoint } = w.__bubble;
+  assert.equal(easeInOut(0), 0);
+  assert.equal(easeInOut(1), 1);
+  assert.equal(easeInOut(0.5), 0.5);
+  assert.ok(easeInOut(0.1) < 0.1 && easeInOut(0.9) > 0.9);
+  const a = { x: 0, y: 0 };
+  const b = { x: 50, y: 100 };
+  const c = { x: 100, y: 0 };
+  assert.deepEqual({ ...curvePoint(a, b, c, 0) }, a);
+  assert.deepEqual({ ...curvePoint(a, b, c, 1) }, c);
+  assert.deepEqual({ ...curvePoint(a, b, c, 0.5) }, { x: 50, y: 50 });
+});
+
+test('each step Claude takes becomes a short thought', () => {
+  const { w } = boot();
+  const t = w.__bubble.thoughtFor;
+  assert.equal(t({ action: 'read', file: 'src/pages/index.html' }), 'Reading index.html…');
+  assert.equal(t({ action: 'edit', file: 'style.css' }), 'Changing style.css…');
+  assert.equal(t({ action: 'write', file: 'a/new.css' }), 'Writing new.css…');
+  assert.equal(t({ action: 'search', query: 'Get started' }), 'Looking for “Get started”…');
+  assert.equal(t({ action: 'search', query: '**/*.{html,css}' }), 'Looking through the files…');
+});

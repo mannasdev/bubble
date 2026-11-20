@@ -11,7 +11,7 @@
     '*{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}',
     // Tokens. The panel is frosted glass so it sits on any site; one accent colour.
     '.wrap,.outline,.cursor,.box,.sheet{--accent:#2f6fed;--accent-soft:rgba(47,111,237,.14);--accent-line:rgba(47,111,237,.4)}',
-    '.wrap{--del:#b3261e;--del-bg:rgba(214,60,50,.1);--add:#167a4a;--add-bg:rgba(43,182,115,.14);--bg:rgba(255,255,255,.4);--field:rgba(255,255,255,.42);--fg:#141418;--muted:#575763;--line:rgba(255,255,255,.55);--edge:rgba(255,255,255,.6);--mine:rgba(255,255,255,.55);--sheen:.32;--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
+    '.wrap{--del:#b3261e;--del-bg:rgba(214,60,50,.1);--add:#167a4a;--add-bg:rgba(43,182,115,.14);--bg:rgba(255,255,255,.4);--field:rgba(255,255,255,.42);--fg:#141418;--muted:#4c4c58;--btn:rgba(255,255,255,.72);--btn-hover:#fff;--btn-line:rgba(0,0,0,.1);--line:rgba(255,255,255,.55);--edge:rgba(255,255,255,.6);--mine:rgba(255,255,255,.55);--sheen:.32;--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
     'position:fixed;right:16px;bottom:16px;z-index:2147483647;font-size:14px;line-height:1.4;color:var(--fg);--ox:100%;--oy:100%;--dy:14px}',
     // It can be dragged to any corner; these move it and flip how the panel opens.
     '.wrap.left{right:auto;left:16px;--ox:0%}',
@@ -26,7 +26,7 @@
     '.dragging .toggle::after{animation:none}',
     '.dragging .panel{box-shadow:0 40px 90px -16px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.14)}',
     '@media (prefers-color-scheme:dark){.wrap,.outline,.cursor,.box,.sheet{--accent:#5b8cff;--accent-soft:rgba(91,140,255,.18);--accent-line:rgba(91,140,255,.5)}',
-    '.wrap{--del:#ff9a90;--del-bg:rgba(255,120,110,.13);--add:#6fdda6;--add-bg:rgba(60,200,130,.14);--bg:rgba(26,26,34,.6);--field:rgba(255,255,255,.07);--fg:#f6f6f8;--muted:#b4b4c0;--line:rgba(255,255,255,.13);--edge:rgba(255,255,255,.2);--mine:rgba(255,255,255,.11);--sheen:.14;--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
+    '.wrap{--del:#ff9a90;--del-bg:rgba(255,120,110,.13);--add:#6fdda6;--add-bg:rgba(60,200,130,.14);--bg:rgba(26,26,34,.6);--field:rgba(255,255,255,.07);--fg:#f6f6f8;--muted:#c9c9d3;--btn:rgba(255,255,255,.16);--btn-hover:rgba(255,255,255,.26);--btn-line:rgba(255,255,255,.2);--line:rgba(255,255,255,.13);--edge:rgba(255,255,255,.2);--mine:rgba(255,255,255,.11);--sheen:.14;--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
     'button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}',
     'button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
     'svg{display:block;flex:none}',
@@ -80,8 +80,12 @@
     // Replies and the log of what was changed.
     '.quote{margin-bottom:5px;padding-left:8px;border-left:2px solid currentColor;font-size:12px;opacity:.8;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
     '.acts{display:flex;gap:2px;margin:6px -5px -3px}',
-    '.acts button{display:flex;align-items:center;gap:4px;padding:3px 7px;border-radius:8px;font-size:12px;font-weight:550;color:var(--muted);transition:background .15s,color .15s}',
-    '.acts button:hover{background:var(--mine);color:var(--fg)}',
+    '.acts{gap:6px!important;margin:8px 0 0!important;flex-wrap:wrap}',
+    '.acts button{white-space:nowrap}',
+    '.msg.claude{max-width:92%}',
+    '.acts button{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:9px;font-size:12px;font-weight:600;color:var(--fg);background:var(--btn);border:1px solid var(--btn-line);box-shadow:0 1px 2px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.18);transition:background .15s,color .15s,transform .15s}',
+    '.acts button:hover{background:var(--btn-hover)}',
+    '.acts button:active{transform:scale(.96)}',
     '.acts .ico{transition:transform .25s ' + EASE + '}',
     '.acts .openlog .ico{transform:rotate(180deg)}',
     '.log{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px}',
@@ -94,7 +98,8 @@
     '.add{background:var(--add-bg);color:var(--add)}',
     '.status .top{display:flex;align-items:center;gap:8px}',
     '.msg.note{align-self:center;max-width:none;padding:2px 10px;font-size:12px;color:var(--muted);animation:rise .3s ' + EASE + ' both}',
-    '.acts .undo:not(:disabled):hover{color:var(--err);background:var(--err-soft)}',
+    '.acts .undo{color:var(--err)}',
+    '.acts .undo:not(:disabled):hover{background:var(--err);color:#fff;border-color:var(--err)}',
     '.acts button:disabled{opacity:.6;cursor:default;background:none}',
     '.hbtn{width:28px;height:28px;border-radius:50%;color:var(--muted);display:grid;place-items:center;transition:background .15s,color .15s}',
     '.hbtn:hover{background:var(--mine);color:var(--fg)}',
@@ -133,10 +138,11 @@
     'textarea{display:block;width:100%;height:42px;max-height:132px;resize:none;border:0;outline:0;background:none;padding:11px 12px 2px;font:inherit;color:var(--fg)}',
     'textarea::placeholder{color:var(--muted)}',
     '.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px}',
-    '.point{display:flex;align-items:center;gap:6px;padding:6px 10px 6px 8px;border-radius:10px;font-size:12.5px;font-weight:550;color:var(--muted);transition:background .15s,color .15s,transform .15s}',
-    '.point:hover{background:var(--mine);color:var(--fg)}',
+    '.point{display:flex;align-items:center;gap:6px;padding:6px 11px 6px 9px;border-radius:10px;font-size:12.5px;font-weight:600;color:var(--fg);background:var(--btn);border:1px solid var(--btn-line);box-shadow:0 1px 2px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.18);transition:background .15s,color .15s,transform .15s}',
+    '.point:hover{background:var(--btn-hover)}',
+    '.tools{gap:6px!important}',
     '.point:active{transform:scale(.96)}',
-    '.point.on{background:var(--accent-soft);color:var(--accent);animation:nudge 1.2s ease-in-out infinite}',
+    '.point.on{background:var(--accent);border-color:var(--accent);color:#fff;animation:nudge 1.2s ease-in-out infinite}',
     '.tools{display:flex;gap:2px}',
     // Drawing a box: a clear sheet over the page catches the drag.
     '.sheet{position:fixed;inset:0;z-index:2147483646;cursor:crosshair;touch-action:none;background:rgba(0,0,0,.04)}',
@@ -167,11 +173,20 @@
     '@keyframes halo{50%{transform:scale(1.35);opacity:.6}}',
     '.trail{position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483645}',
     '.arrow.plain{width:18px;height:22px;background:var(--accent);clip-path:polygon(0 0,0 78%,24% 60%,40% 100%,56% 93%,40% 55%,72% 55%);filter:none}',
-    '.tag{margin:17px 0 0 -3px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;line-height:1;padding:5px 9px;border-radius:4px 11px 11px 11px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 0 1px rgba(255,255,255,.25),0 4px 16px var(--accent-line)}',
-    '.tag.pop{animation:pop .4s ' + SPRING + '}',
-    '@keyframes pop{from{transform:scale(.6)}}',
-    '.cursor.busy .arrow{animation:bob 1s ease-in-out infinite}',
-    '@keyframes bob{50%{transform:translateY(-4px)}}',
+    // A thought bubble: two little puffs rising from the pointer to a cloud.
+    '.think{position:absolute;left:14px;bottom:2px;pointer-events:none}',
+    '.puff{position:absolute;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-line),inset 0 1px 0 rgba(255,255,255,.35)}',
+    '.puff.p1{left:2px;bottom:0;width:6px;height:6px;animation:drift 2.4s ease-in-out infinite}',
+    '.puff.p2{left:9px;bottom:9px;width:9px;height:9px;animation:drift 2.4s .3s ease-in-out infinite}',
+    '.cloud{position:absolute;left:14px;bottom:18px;max-width:230px;padding:7px 12px;border-radius:16px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 0 1px rgba(255,255,255,.25),0 6px 20px var(--accent-line);transform-origin:0 100%;animation:float 3.2s ease-in-out infinite}',
+    '.cloud span{display:inline-block}',
+    '.cloud span.swap{animation:swap .45s ' + EASE + '}',
+    '@keyframes swap{from{opacity:0;transform:translateY(6px)}}',
+    '@keyframes drift{50%{transform:translate(1px,-2px)}}',
+    '.think.pop .cloud{animation:pop .5s ' + SPRING + ',float 3.2s .5s ease-in-out infinite}',
+    '.think.pop .puff.p1{animation:pop .3s ' + SPRING + ' both}',
+    '.think.pop .puff.p2{animation:pop .3s .08s ' + SPRING + ' both}',
+    '@keyframes pop{from{transform:scale(.3);opacity:0}}',
     '.ping{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border-radius:50%;border:2px solid var(--accent);opacity:0}',
     '.ping.go{animation:ping .7s ease-out}',
     '@keyframes ping{from{opacity:.9;transform:scale(.2)}to{opacity:0;transform:scale(1.5)}}',
@@ -429,7 +444,36 @@
     return picked;
   }
 
-  window.__bubble = { boxLabel: boxLabel, boxBetween: boxBetween, mostlyInside: mostlyInside, describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf, cornerFor: cornerFor };
+  // Smooth start and finish for a glide.
+  function easeInOut(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  // A point along a curve from `a` to `c` that bends toward `b`.
+  function curvePoint(a, b, c, t) {
+    var u = 1 - t;
+    return { x: u * u * a.x + 2 * u * t * b.x + t * t * c.x, y: u * u * a.y + 2 * u * t * b.y + t * t * c.y };
+  }
+
+  // How long a glide takes: unhurried, a little longer for longer trips.
+  function glideTime(dist) {
+    return Math.min(Math.max(650 + dist * 1.3, 900), 1900);
+  }
+
+  // A step Claude took, as a short thought.
+  function thoughtFor(step) {
+    var file = step.file ? String(step.file).split('/').pop() : '';
+    if (step.action === 'search') {
+      var q = String(step.query || '');
+      return /[*{}?\\|]/.test(q) || !q ? 'Looking through the files\u2026' : 'Looking for \u201c' + q.slice(0, 24) + '\u201d\u2026';
+    }
+    if (step.action === 'read') return 'Reading ' + file + '\u2026';
+    if (step.action === 'edit') return 'Changing ' + file + '\u2026';
+    if (step.action === 'write') return 'Writing ' + file + '\u2026';
+    return 'Thinking\u2026';
+  }
+
+  window.__bubble = { easeInOut: easeInOut, curvePoint: curvePoint, glideTime: glideTime, thoughtFor: thoughtFor, boxLabel: boxLabel, boxBetween: boxBetween, mostlyInside: mostlyInside, describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf, cornerFor: cornerFor };
 
   var host = el('div');
   host.id = '__bubble_root';
@@ -514,8 +558,12 @@
   var arrow = icon('point', 22, true);
   arrow.setAttribute('class', document.createElementNS ? 'arrow' : 'arrow plain');
   var ping = el('div', 'ping');
-  var tag = el('div', 'tag', 'Claude');
-  cursor.append(el('div', 'halo'), ping, arrow, tag);
+  var think = el('div', 'think');
+  var thought = el('span', '', 'Thinking\u2026');
+  var cloud = el('div', 'cloud');
+  cloud.append(thought);
+  think.append(el('div', 'puff p1'), el('div', 'puff p2'), cloud);
+  cursor.append(el('div', 'halo'), ping, arrow, think);
   var trail = el('canvas', 'trail');
   wrap.append(toggle, panel);
   root.append(wrap, outline, flashBox, trail, cursor);
@@ -627,14 +675,13 @@
     }
   }
 
-  // Claude's pointer glides on a spring and leaves a short glowing trail.
+  // Claude's pointer drifts along gentle curves and leaves a soft glowing trail.
   var pos = { x: 0, y: 0 };
-  var goal = { x: 0, y: 0 };
-  var speed = { x: 0, y: 0 };
+  var glideFrom = null; // the glide in progress: from, bend, to, start, length
   var trailPoints = [];
   var moving = null;
   var trailColor = '47,111,237';
-  var TRAIL_MS = 320;
+  var TRAIL_MS = 520;
   var calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var pen = trail.getContext ? trail.getContext('2d') : null;
 
@@ -644,9 +691,9 @@
 
   function jumpCursor(x, y) {
     var point = clampPoint(x, y, window.innerWidth, window.innerHeight);
-    pos.x = goal.x = point.x;
-    pos.y = goal.y = point.y;
-    speed.x = speed.y = 0;
+    pos.x = point.x;
+    pos.y = point.y;
+    glideFrom = null;
     trailPoints = [];
     drawCursor();
   }
@@ -664,15 +711,15 @@
     pen.clearRect(0, 0, w, h);
     if (!cursor.classList.contains('on')) return;
     pen.lineCap = 'round';
-    pen.shadowColor = 'rgba(' + trailColor + ',.9)';
+    pen.shadowColor = 'rgba(' + trailColor + ',.8)';
     for (var i = 1; i < trailPoints.length; i++) {
       var a = trailPoints[i - 1];
       var b = trailPoints[i];
       var life = 1 - (now - b.t) / TRAIL_MS; // 1 = just drawn, 0 = gone
       if (life <= 0) continue;
-      pen.strokeStyle = 'rgba(' + trailColor + ',' + (0.85 * life).toFixed(3) + ')';
-      pen.lineWidth = 1.5 + 6 * life;
-      pen.shadowBlur = 14 * life;
+      pen.strokeStyle = 'rgba(' + trailColor + ',' + (0.7 * life * life).toFixed(3) + ')';
+      pen.lineWidth = 1 + 5 * life;
+      pen.shadowBlur = 16 * life;
       pen.beginPath();
       pen.moveTo(a.x + 4, a.y + 4); // from the arrow's tip
       pen.lineTo(b.x + 4, b.y + 4);
@@ -681,49 +728,106 @@
   }
 
   function frame(now) {
-    // A gentle spring: quick to leave, soft to land.
-    speed.x = (speed.x + (goal.x - pos.x) * 0.065) * 0.8;
-    speed.y = (speed.y + (goal.y - pos.y) * 0.065) * 0.8;
-    pos.x += speed.x;
-    pos.y += speed.y;
-    var still =
-      Math.abs(goal.x - pos.x) < 0.4 && Math.abs(goal.y - pos.y) < 0.4 && Math.abs(speed.x) < 0.3 && Math.abs(speed.y) < 0.3;
-    if (still) {
-      pos.x = goal.x;
-      pos.y = goal.y;
-      speed.x = speed.y = 0;
-    } else {
+    if (glideFrom) {
+      var g = glideFrom;
+      var t = Math.min((now - g.start) / g.length, 1);
+      var point = curvePoint(g.from, g.bend, g.to, easeInOut(t));
+      pos.x = point.x;
+      pos.y = point.y;
       trailPoints.push({ x: pos.x, y: pos.y, t: now });
+      if (t >= 1) {
+        glideFrom = null;
+        if (g.landed) g.landed();
+      }
     }
     while (trailPoints.length && now - trailPoints[0].t > TRAIL_MS) trailPoints.shift();
     drawCursor();
     paintTrail(now);
-    moving = still && !trailPoints.length ? null : window.requestAnimationFrame(frame);
+    moving = !glideFrom && !trailPoints.length ? null : window.requestAnimationFrame(frame);
   }
 
-  function placeCursor(x, y) {
+  // Glide to a point along a soft curve. `slow` is for idle wandering.
+  function placeCursor(x, y, opts) {
+    opts = opts || {};
     var point = clampPoint(x, y, window.innerWidth, window.innerHeight);
-    if (calm || !window.requestAnimationFrame) return jumpCursor(point.x, point.y);
-    goal.x = point.x;
-    goal.y = point.y;
+    if (calm || !window.requestAnimationFrame) {
+      jumpCursor(point.x, point.y);
+      if (opts.landed) opts.landed();
+      return;
+    }
+    var from = { x: pos.x, y: pos.y };
+    var dist = Math.hypot(point.x - from.x, point.y - from.y);
+    if (dist < 2) {
+      if (opts.landed) opts.landed();
+      return;
+    }
+    // Bow the path a little to one side, like a hand moving a mouse.
+    var side = Math.random() < 0.5 ? -1 : 1;
+    var bowl = Math.min(dist * 0.22, 90) * side;
+    var bend = {
+      x: (from.x + point.x) / 2 - ((point.y - from.y) / dist) * bowl,
+      y: (from.y + point.y) / 2 + ((point.x - from.x) / dist) * bowl,
+    };
+    glideFrom = {
+      from: from,
+      bend: bend,
+      to: point,
+      start: window.performance ? window.performance.now() : Date.now(),
+      length: glideTime(dist) * (opts.slow ? 1.5 : 1),
+      landed: opts.landed,
+    };
     var rgb = /(\d+),\s*(\d+),\s*(\d+)/.exec(window.getComputedStyle ? window.getComputedStyle(cursor).color : '');
     if (rgb) trailColor = rgb[1] + ',' + rgb[2] + ',' + rgb[3];
     if (!moving) moving = window.requestAnimationFrame(frame);
   }
 
-  function setTag(text) {
-    if (tag.textContent === text) return;
-    tag.textContent = text;
-    restart(tag, 'pop');
+  // What the pointer is "thinking", in a bubble above it.
+  var lastThought = 0;
+  function setThought(text, quietly) {
+    if (thought.textContent === text) return;
+    thought.textContent = text;
+    lastThought = Date.now();
+    if (!quietly) restart(thought, 'swap');
+  }
+
+  function popThought() {
+    restart(think, 'pop');
+  }
+
+  // While Claude works the pointer idles about where it is working, now and
+  // then with a passing thought, so a long wait still feels alive.
+  var IDLE_THOUGHTS = ['Thinking…', 'Hmm…', 'Looking around…', 'Getting an idea…', 'Almost…'];
+  var wanderTimer = null;
+
+  function wander() {
+    wanderTimer = null;
+    if (!working || calm) return;
+    var anchor = find(changedPath) || find(workPath);
+    var box = anchor && onScreen(anchor) ? anchor.getBoundingClientRect() : null;
+    var x;
+    var y;
+    if (box) {
+      x = box.left + 12 + Math.random() * Math.max(box.width - 24, 1);
+      y = box.top + 10 + Math.random() * Math.max(Math.min(box.height, 240) - 20, 1);
+    } else {
+      x = pos.x + (Math.random() - 0.5) * 220;
+      y = pos.y + (Math.random() - 0.5) * 140;
+    }
+    placeCursor(x, y, { slow: true });
+    if (Date.now() - lastThought > 4500) {
+      setThought(IDLE_THOUGHTS[Math.floor(Math.random() * IDLE_THOUGHTS.length)]);
+    }
+    wanderTimer = window.setTimeout(wander, 1800 + Math.random() * 1600);
   }
 
   function cursorTo(node) {
     var box = node.getBoundingClientRect();
-    placeCursor(box.left + Math.min(box.width / 2, 120), box.top + Math.min(box.height / 2, 40));
-    // A click ripple as the pointer lands.
-    window.setTimeout(function () {
-      restart(ping, 'go');
-    }, 650);
+    placeCursor(box.left + Math.min(box.width / 2, 120), box.top + Math.min(box.height / 2, 40), {
+      // A click ripple as the pointer lands.
+      landed: function () {
+        restart(ping, 'go');
+      },
+    });
   }
 
   function flash(node) {
@@ -762,8 +866,11 @@
   function startWork() {
     working = true;
     changedPath = null;
-    setTag('Claude');
+    setThought('Thinking\u2026', true);
     cursor.classList.add('on', 'busy');
+    popThought();
+    if (wanderTimer) window.clearTimeout(wanderTimer);
+    wanderTimer = window.setTimeout(wander, 2600);
     var target = find(workPath);
     if (target && onScreen(target)) cursorTo(target);
     else placeCursor(window.innerWidth * 0.5, window.innerHeight * 0.4);
@@ -775,6 +882,8 @@
 
   function stopWork() {
     working = false;
+    if (wanderTimer) window.clearTimeout(wanderTimer);
+    wanderTimer = null;
     if (observer) observer.disconnect();
     observer = null;
     cursor.classList.remove('busy');
@@ -795,7 +904,8 @@
     if (!node) return;
     if (!onScreen(node) && node.scrollIntoView) node.scrollIntoView({ block: 'center' });
     cursor.classList.add('on');
-    setTag('Done \u2713');
+    setThought('Done \u2713', true);
+    popThought();
     cursorTo(node);
     flash(node);
     window.setTimeout(hideCursor, 2400);
@@ -1350,7 +1460,7 @@
       try {
         window.sessionStorage.setItem('bubble_flash', changedPath || workPath || '');
       } catch (e) {}
-      setTag('Done \u2713');
+      setThought('Done \u2713');
       window.setTimeout(function () {
         window.location.reload();
       }, 1500);
@@ -1360,8 +1470,10 @@
     workPath = null;
   });
   source.addEventListener('step', function (event) {
-    liveSteps.push(JSON.parse(event.data));
+    var step = JSON.parse(event.data);
+    liveSteps.push(step);
     showLive();
+    if (working) setThought(thoughtFor(step));
   });
   source.addEventListener('steps', function (event) {
     liveSteps = JSON.parse(event.data);

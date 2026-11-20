@@ -5,10 +5,10 @@ import net from 'node:net';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { createProxy } from '../src/proxy.js';
-import { DENIED_HTML } from '../src/access.js';
+import { DENIED_HTML, cookieName } from '../src/access.js';
 
 const KEY = 'k'.repeat(32);
-const COOKIE = `bubble_k=${KEY}`;
+const COOKIE = `${cookieName(KEY)}=${KEY}`;
 const TAG = '<script src="/__bubble/widget.js" defer></script>';
 const GZ = zlib.gzipSync('<body>zipped</body>');
 
@@ -151,7 +151,7 @@ test('the right key redirects with the cookie', async () => {
   const r = await get(`/page?k=${KEY}`);
   assert.equal(r.status, 302);
   assert.equal(r.headers.location, '/page');
-  assert.match(r.headers['set-cookie'][0], /^bubble_k=k{32}; HttpOnly/);
+  assert.ok(r.headers['set-cookie'][0].startsWith(`${cookieName(KEY)}=${KEY}; HttpOnly`));
 });
 
 test('bubble routes reach the api handler', async () => {

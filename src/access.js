@@ -1,6 +1,12 @@
 import crypto from 'node:crypto';
 
-const COOKIE = 'bubble_k';
+/**
+ * The cookie is named after the project's key, so two bubbles running on one
+ * computer (both on localhost) do not overwrite each other's login.
+ */
+export function cookieName(key) {
+  return 'bubble_' + crypto.createHash('sha256').update(String(key)).digest('hex').slice(0, 8);
+}
 
 export const DENIED_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -37,11 +43,11 @@ export function checkAccess(req, key, { secure = true } = {}) {
       ok: true,
       // Secure cookies are dropped on plain http://localhost by some browsers,
       // so a local-only link leaves the flag off.
-      setCookie: `${COOKIE}=${key}; HttpOnly; ${secure ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=2592000`,
+      setCookie: `${cookieName(key)}=${key}; HttpOnly; ${secure ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=2592000`,
       redirect: url.pathname + url.search,
     };
   }
-  const cookie = cookieValue(req.headers.cookie, COOKIE);
+  const cookie = cookieValue(req.headers.cookie, cookieName(key));
   if (cookie !== null && same(cookie, key)) return { ok: true };
   return { ok: false };
 }
