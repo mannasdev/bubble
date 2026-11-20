@@ -6,6 +6,7 @@ import { createApi } from './api.js';
 import { startTunnel } from './tunnel.js';
 import { formatActivity, createSpinner } from './feed.js';
 import { stopAll } from './runner.js';
+import { createSnapshots } from './snapshots.js';
 
 export const USAGE = `Usage: bubble <port> [--local] [--host name] [--fresh]
 
@@ -73,6 +74,7 @@ export async function main(argv) {
     projectDir,
     widgetPath: fileURLToPath(new URL('../widget/widget.js', import.meta.url)),
     owner: args.noTunnel,
+    snapshots: createSnapshots(projectDir),
     // Everything that happens in the bubble is printed here as it happens.
     onActivity: (event) => {
       // While Claude works, a spinner with a timer sits under the last line.

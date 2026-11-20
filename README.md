@@ -58,6 +58,18 @@ index.html", "Edited index.html"). Afterwards each answer has an "N changes"
 button that opens the log, with what each edit replaced and what it put there.
 The same steps are saved with the conversation in `.bubble/history.json`.
 
+## Undo
+
+Every answer that changed files has an Undo button, and the clock button in
+the panel's header opens Changes: every change Claude made, newest first,
+with its edits and an Undo. Undo puts back only what that change did, and
+leaves later edits alone. If a later change touched the same spot, it says
+so and changes nothing; undo the later one first.
+
+Bubble keeps its own snapshots in `.bubble/snapshots` (a hidden git
+repository) so your project's git is never touched. Changes made before you
+updated bubble cannot be undone this way; use git for those.
+
 ## Moving it
 
 Drag the launcher, or the open panel by its header, to any corner. It stays

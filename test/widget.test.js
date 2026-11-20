@@ -249,3 +249,17 @@ test('her reply shows the message it answers as a quote', () => {
   const node = w.__bubble.renderEntry({ role: 'visitor', text: 'darker', replyTo: 'The button is blue.' });
   assert.deepEqual(node.children.map((c) => [c.className, c.textContent]), [['quote', 'The button is blue.'], ['body', 'darker']]);
 });
+
+test('an answer that changed files offers Undo', () => {
+  const { w } = boot();
+  const node = w.__bubble.renderEntry({ role: 'claude', text: 'done', change: 'c1', steps: [{ action: 'edit', file: 'a', before: '1', after: '2' }] });
+  const labels = node.children.find((c) => c.className === 'acts').children.map((b) => b.textContent);
+  assert.deepEqual(labels, ['Reply', '1 change', 'Undo']);
+});
+
+test('an undo note is shown as a quiet line', () => {
+  const { w } = boot();
+  const node = w.__bubble.renderEntry({ role: 'note', text: 'Undid “x”', undid: 'c1' });
+  assert.equal(node.className, 'msg note');
+  assert.equal(node.textContent, 'Undid “x”');
+});

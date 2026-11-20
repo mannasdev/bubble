@@ -55,6 +55,9 @@ function forward(req, res, targetPort) {
     (upRes) => {
       const headers = { ...upRes.headers };
       if (headers.location) headers.location = localRedirect(headers.location, targetPort);
+      // Without caching rules a browser may reuse an old stylesheet after a
+      // change; make it check again. A dev server's own rules are kept.
+      if (!headers['cache-control']) headers['cache-control'] = 'no-cache';
       const type = String(headers['content-type'] || '');
       const isPlainHtml = type.startsWith('text/html') && !headers['content-encoding'];
       if (!isPlainHtml) {

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import path from 'node:path';
 import { runClaude, RunError } from './runner.js';
 
 const MAX_BODY = 16 * 1024;
@@ -50,7 +51,15 @@ function cleanPointed(p) {
  * Everything under /__bubble/: the widget file, the live event stream, and
  * the endpoint that takes a message and queues it for Claude.
  */
-export function createApi({ state, projectDir, run = runClaude, widgetPath, owner = false, onActivity = () => {} }) {
+export function createApi({
+  state,
+  projectDir,
+  run = runClaude,
+  widgetPath,
+  owner = false,
+  onActivity = () => {},
+  snapshots = null,
+}) {
   const listeners = new Set();
   const queue = [];
   let working = false;
@@ -80,8 +89,20 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     onActivity({ type: 'step', step });
   };
 
+  // Changes that can be undone: id -> { before, after, request, files, undone }.
+  const changesFile = path.join(projectDir, '.bubble', 'changes.json');
+  const changes = (() => {
+    try {
+      return JSON.parse(fs.readFileSync(changesFile, 'utf8'));
+    } catch {
+      return {};
+    }
+  })();
+  const saveChanges = () => fs.writeFileSync(changesFile, JSON.stringify(changes, null, 2));
+
   async function runJob(job) {
     steps = [];
+    const before = snapshots ? await snapshots.take() : null;
     const attempt = (sessionId) =>
       run({
         projectDir,
@@ -103,7 +124,14 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
         result = await attempt(null);
       }
       if (result.sessionId) state.setSession(result.sessionId);
-      add('claude', result.reply, { files: result.files, ...(steps.length ? { steps } : {}) });
+      const after = before ? await snapshots.take() : null;
+      let change;
+      if (before && after && before !== after) {
+        change = crypto.randomUUID();
+        changes[change] = { before, after, request: job.text, files: result.files, undone: false };
+        saveChanges();
+      }
+      add('claude', result.reply, { files: result.files, ...(steps.length ? { steps } : {}), ...(change ? { change } : {}) });
       steps = [];
       state.log(job.text, result.reply, result.files);
       onActivity({ type: 'reply', text: result.reply, files: result.files });
@@ -149,6 +177,32 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     drain();
   }
 
+  async function undo(req, res) {
+    const raw = await readBody(req);
+    let id;
+    try {
+      id = JSON.parse(raw ?? '').id;
+    } catch {}
+    const change = typeof id === 'string' && Object.hasOwn(changes, id) ? changes[id] : null;
+    if (!change) return json(res, 404, { error: 'unknown' });
+    if (change.undone) return json(res, 409, { error: 'done' });
+    if (working) return json(res, 409, { error: 'busy' });
+    working = true;
+    try {
+      const result = await snapshots.undo(change.before, change.after);
+      if (!result.ok) return json(res, 409, { error: result.reason });
+      change.undone = true;
+      saveChanges();
+      add('note', `Undid \u201c${change.request}\u201d`, { undid: id });
+      state.log(`(undo) ${change.request}`, 'Undid this change.', change.files ?? []);
+      onActivity({ type: 'undo', text: change.request, files: change.files ?? [] });
+      json(res, 200, { ok: true });
+    } finally {
+      working = false;
+      if (queue.length) drain();
+    }
+  }
+
   function events(req, res) {
     res.writeHead(200, {
       'content-type': 'text/event-stream',
@@ -176,6 +230,7 @@ export function createApi({ state, projectDir, run = runClaude, widgetPath, owne
     }
     if (req.method === 'GET' && route === '/__bubble/events') return events(req, res);
     if (req.method === 'POST' && route === '/__bubble/send') return send(req, res);
+    if (req.method === 'POST' && route === '/__bubble/undo' && snapshots) return undo(req, res);
     json(res, 404, { error: 'not found' });
   };
 }

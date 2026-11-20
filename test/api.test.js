@@ -383,3 +383,97 @@ test('everything that happens is reported for the owner to watch', async (t) => 
     { type: 'error', detail: 'failed: Not logged in' },
   ]);
 });
+
+function fakeSnapshots(results = {}) {
+  let n = 0;
+  const undos = [];
+  return {
+    undos,
+    take: async () => `tree${++n}`,
+    undo: async (before, after) => {
+      undos.push([before, after]);
+      return results.undo ?? { ok: true };
+    },
+  };
+}
+
+async function undoSetup(t, { run = okRun, snapshots = fakeSnapshots() } = {}) {
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-api-'));
+  const state = openState(projectDir);
+  const seen = [];
+  const handler = createApi({ state, projectDir, widgetPath: '/dev/null', run, snapshots, onActivity: (e) => seen.push(e) });
+  const server = http.createServer(handler);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  const base = `http://127.0.0.1:${server.address().port}/__bubble/`;
+  const post = (route, body) =>
+    fetch(base + route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const settled = async (count) => {
+    for (let i = 0; i < 200 && state.history().length < count; i++) await sleep(10);
+    return state.history();
+  };
+  return { state, post, settled, seen, snapshots, projectDir };
+}
+
+test('a change that edited files can be undone', async (t) => {
+  const a = await undoSetup(t);
+  await a.post('send', { text: 'make it big' });
+  const h = await a.settled(2);
+  assert.equal(typeof h[1].change, 'string');
+  const res = await a.post('undo', { id: h[1].change });
+  assert.equal(res.status, 200);
+  assert.deepEqual(a.snapshots.undos, [['tree1', 'tree2']]);
+  const after = await a.settled(3);
+  assert.deepEqual(
+    { role: after[2].role, text: after[2].text, undid: after[2].undid },
+    { role: 'note', text: 'Undid “make it big”', undid: h[1].change },
+  );
+  assert.deepEqual(a.seen.filter((e) => e.type === 'undo'), [{ type: 'undo', text: 'make it big', files: ['index.html'] }]);
+  assert.match(fs.readFileSync(path.join(a.projectDir, '.bubble', 'log.md'), 'utf8'), /\*\*Asked:\*\* \(undo\) make it big/);
+});
+
+test('a change can only be undone once', async (t) => {
+  const a = await undoSetup(t);
+  await a.post('send', { text: 'x' });
+  const h = await a.settled(2);
+  assert.equal((await a.post('undo', { id: h[1].change })).status, 200);
+  const again = await a.post('undo', { id: h[1].change });
+  assert.equal(again.status, 409);
+  assert.deepEqual(await again.json(), { error: 'done' });
+});
+
+test('an answer that changed nothing has nothing to undo', async (t) => {
+  const snapshots = { take: async () => 'same', undo: async () => ({ ok: true }) };
+  const a = await undoSetup(t, { run: async () => ({ reply: 'nothing to do', sessionId: 's', files: [] }), snapshots });
+  await a.post('send', { text: 'x' });
+  const h = await a.settled(2);
+  assert.equal(h[1].change, undefined);
+});
+
+test('undo is refused while claude is working, for an unknown change, and when it would clash', async (t) => {
+  let release;
+  const a = await undoSetup(t, {
+    snapshots: fakeSnapshots({ undo: { ok: false, reason: 'conflict' } }),
+    run: async () => {
+      if (release === undefined) return { reply: 'ok', sessionId: 's', files: ['a'] };
+      await new Promise((r) => (release = r));
+      return { reply: 'ok', sessionId: 's', files: ['a'] };
+    },
+  });
+  await a.post('send', { text: 'first' });
+  const h = await a.settled(2);
+  assert.equal((await a.post('undo', { id: 'nope' })).status, 404);
+  const clash = await a.post('undo', { id: h[1].change });
+  assert.equal(clash.status, 409);
+  assert.deepEqual(await clash.json(), { error: 'conflict' });
+  release = null;
+  await a.post('send', { text: 'second' });
+  await sleep(30);
+  const busy = await a.post('undo', { id: h[1].change });
+  assert.equal(busy.status, 409);
+  assert.deepEqual(await busy.json(), { error: 'busy' });
+  release();
+});

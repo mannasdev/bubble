@@ -45,6 +45,9 @@ before(async () => {
       const to = new URL(req.url, 'http://x').searchParams.get('to').replace('PORT', upstreamPort);
       res.writeHead(302, { location: to });
       res.end();
+    } else if (req.url === '/cached') {
+      res.writeHead(200, { 'content-type': 'text/css', 'cache-control': 'max-age=31536000, immutable' });
+      res.end('a{}');
     } else if (req.url === '/data') {
       res.writeHead(200, { 'content-type': 'application/json', 'content-security-policy': 'x' });
       res.end('{"a":"</body>"}');
@@ -222,4 +225,14 @@ test('a local-only proxy hands out the cookie without Secure', async () => {
     base = saved;
     local.close();
   }
+});
+
+test('responses with no caching rules are checked again on every load', async () => {
+  const r = await get('/data', { cookie: COOKIE });
+  assert.equal(r.headers['cache-control'], 'no-cache');
+});
+
+test("a dev server's own caching rules are kept", async () => {
+  const r = await get('/cached', { cookie: COOKIE });
+  assert.equal(r.headers['cache-control'], 'max-age=31536000, immutable');
 });

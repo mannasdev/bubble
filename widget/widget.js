@@ -11,7 +11,7 @@
     '*{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}',
     // Tokens. The panel is frosted glass so it sits on any site; one accent colour.
     '.wrap,.outline,.cursor{--accent:#2f6fed;--accent-soft:rgba(47,111,237,.14);--accent-line:rgba(47,111,237,.4)}',
-    '.wrap{--del:#b3261e;--del-bg:rgba(214,60,50,.1);--add:#167a4a;--add-bg:rgba(43,182,115,.14);--bg:rgba(255,255,255,.88);--field:rgba(255,255,255,.9);--fg:#16161a;--muted:#6e6e78;--line:rgba(0,0,0,.09);--mine:rgba(0,0,0,.055);--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
+    '.wrap{--del:#b3261e;--del-bg:rgba(214,60,50,.1);--add:#167a4a;--add-bg:rgba(43,182,115,.14);--bg:rgba(255,255,255,.4);--field:rgba(255,255,255,.42);--fg:#141418;--muted:#575763;--line:rgba(255,255,255,.55);--edge:rgba(255,255,255,.6);--mine:rgba(255,255,255,.55);--sheen:.32;--err:#b3261e;--err-soft:rgba(179,38,30,.08);',
     'position:fixed;right:16px;bottom:16px;z-index:2147483647;font-size:14px;line-height:1.4;color:var(--fg);--ox:100%;--oy:100%;--dy:14px}',
     // It can be dragged to any corner; these move it and flip how the panel opens.
     '.wrap.left{right:auto;left:16px;--ox:0%}',
@@ -26,13 +26,13 @@
     '.dragging .toggle::after{animation:none}',
     '.dragging .panel{box-shadow:0 40px 90px -16px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.14)}',
     '@media (prefers-color-scheme:dark){.wrap,.outline,.cursor{--accent:#5b8cff;--accent-soft:rgba(91,140,255,.18);--accent-line:rgba(91,140,255,.5)}',
-    '.wrap{--del:#ff9a90;--del-bg:rgba(255,120,110,.13);--add:#6fdda6;--add-bg:rgba(60,200,130,.14);--bg:rgba(24,24,28,.86);--field:rgba(255,255,255,.05);--fg:#f3f3f6;--muted:#9a9aa6;--line:rgba(255,255,255,.11);--mine:rgba(255,255,255,.08);--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
+    '.wrap{--del:#ff9a90;--del-bg:rgba(255,120,110,.13);--add:#6fdda6;--add-bg:rgba(60,200,130,.14);--bg:rgba(26,26,34,.6);--field:rgba(255,255,255,.07);--fg:#f6f6f8;--muted:#b4b4c0;--line:rgba(255,255,255,.13);--edge:rgba(255,255,255,.2);--mine:rgba(255,255,255,.11);--sheen:.14;--err:#ff8a80;--err-soft:rgba(255,138,128,.1)}}',
     'button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}',
     'button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
     'svg{display:block;flex:none}',
 
     // Launcher: a pill that lifts on hover and has a slow breathing ring.
-    '.toggle{position:relative;height:44px;padding:0 16px 0 13px;border-radius:22px;background:#16161a;color:#fff;border:1px solid rgba(255,255,255,.22);font-size:13px;font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px -6px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.25);transition:transform .28s ' + SPRING + ',opacity .18s ease,box-shadow .2s ease}',
+    '.toggle{position:relative;height:44px;padding:0 16px 0 13px;border-radius:22px;background:rgba(22,22,30,.5);-webkit-backdrop-filter:blur(18px) saturate(1.8);backdrop-filter:blur(18px) saturate(1.8);color:#fff;border:1px solid rgba(255,255,255,.32);font-size:13px;font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px -6px rgba(0,0,0,.4),0 1px 3px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.28);transition:transform .28s ' + SPRING + ',opacity .18s ease,box-shadow .2s ease}',
     '.toggle::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:2px solid var(--accent);opacity:0;animation:breathe 3.2s ease-out infinite;pointer-events:none}',
     '@keyframes breathe{0%{opacity:.55;transform:scale(1)}60%,100%{opacity:0;transform:scale(1.14,1.4)}}',
     '.toggle:hover{transform:translateY(-2px);box-shadow:0 14px 30px -8px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.25)}',
@@ -49,8 +49,11 @@
     '.open .toggle{opacity:0;transform:scale(.6);pointer-events:none}',
 
     // Panel: springs out of the corner the launcher sits in.
-    '.panel{position:absolute;right:0;bottom:0;width:min(344px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 32px));display:flex;flex-direction:column;background:var(--bg);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border:1px solid var(--line);border-radius:18px;box-shadow:0 28px 70px -14px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.1);overflow:hidden;',
+    '.panel{position:absolute;right:0;bottom:0;width:min(344px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 32px));display:flex;flex-direction:column;background:var(--bg);-webkit-backdrop-filter:blur(30px) saturate(1.9) brightness(1.05);backdrop-filter:blur(30px) saturate(1.9) brightness(1.05);border:1px solid var(--edge);border-radius:22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.38),0 6px 16px -6px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08);overflow:hidden;',
     'transform-origin:var(--ox) var(--oy);opacity:0;transform:scale(.86) translateY(var(--dy));pointer-events:none;visibility:hidden;transition:transform .2s ease,opacity .16s ease,visibility 0s linear .2s}',
+    // The liquid sheen: light catching the top-left edge of the glass.
+    '.panel::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(140deg,rgba(255,255,255,var(--sheen)) 0%,rgba(255,255,255,0) 32%,rgba(255,255,255,0) 72%,rgba(255,255,255,calc(var(--sheen) / 2)) 100%)}',
+    '.panel>*{position:relative}',
     '.open .panel{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:transform .36s ' + SPRING + ',opacity .18s ease,visibility 0s}',
     '.head{display:flex;align-items:center;gap:9px;padding:13px 10px 11px 15px;border-bottom:1px solid var(--line)}',
     '.live{width:8px;height:8px;border-radius:50%;background:#2bb673;flex:none;transition:background .3s}',
@@ -90,6 +93,22 @@
     '.del{background:var(--del-bg);color:var(--del);text-decoration:line-through}',
     '.add{background:var(--add-bg);color:var(--add)}',
     '.status .top{display:flex;align-items:center;gap:8px}',
+    '.msg.note{align-self:center;max-width:none;padding:2px 10px;font-size:12px;color:var(--muted);animation:rise .3s ' + EASE + ' both}',
+    '.acts .undo:not(:disabled):hover{color:var(--err);background:var(--err-soft)}',
+    '.acts button:disabled{opacity:.6;cursor:default;background:none}',
+    '.hbtn{width:28px;height:28px;border-radius:50%;color:var(--muted);display:grid;place-items:center;transition:background .15s,color .15s}',
+    '.hbtn:hover{background:var(--mine);color:var(--fg)}',
+    '.hist .hbtn{background:var(--accent-soft);color:var(--accent)}',
+    '.hist .list,.hist .status,.hist .chip,.hist .form{display:none!important}',
+    '.changes{display:none;flex:1;min-height:120px;overflow-y:auto;padding:12px;flex-direction:column;gap:8px}',
+    '.hist .changes{display:flex}',
+    '.crow{padding:10px 12px;border-radius:14px;background:var(--mine);display:flex;flex-direction:column;gap:3px;animation:rise .32s ' + EASE + ' both}',
+    '.crow.undone{opacity:.55}',
+    '.creq{font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
+    '.crow.undone .creq{text-decoration:line-through}',
+    '.cmeta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}',
+    '.crow .acts{margin-top:4px}',
+    '.pill{font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:8px;background:var(--mine);color:var(--muted)}',
     '.when{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}',
     '.live-log{display:flex;flex-direction:column;gap:3px;font-size:12px}',
     '.live-log:empty{display:none}',
@@ -109,7 +128,7 @@
     '.chip button:hover{background:var(--mine);color:var(--fg)}',
 
     '.form{padding:0 12px 12px}',
-    '.composer{border:1px solid var(--line);border-radius:15px;background:var(--field);transition:border-color .18s,box-shadow .18s}',
+    '.composer{border:1px solid var(--line);border-radius:16px;background:var(--field);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);transition:border-color .18s,box-shadow .18s}',
     '.composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}',
     'textarea{display:block;width:100%;height:42px;max-height:132px;resize:none;border:0;outline:0;background:none;padding:11px 12px 2px;font:inherit;color:var(--fg)}',
     'textarea::placeholder{color:var(--muted)}',
@@ -133,11 +152,14 @@
     '.glow{transition:none;background:none;border-width:2px}',
     '.flash{animation:flash 1.7s ease-out forwards}',
     '@keyframes flash{0%{opacity:0;transform:scale(1.04)}14%{opacity:1;transform:none;box-shadow:0 0 0 0 var(--accent-line)}55%{opacity:1;box-shadow:0 0 0 12px rgba(0,0,0,0)}100%{opacity:0;box-shadow:0 0 0 12px rgba(0,0,0,0)}}',
-    '.cursor{position:fixed;left:0;top:0;z-index:2147483646;pointer-events:none;display:flex;align-items:flex-start;color:var(--accent);opacity:0;transition:transform .8s cubic-bezier(.2,.8,.2,1),opacity .3s}',
+    '.cursor{position:fixed;left:0;top:0;z-index:2147483646;pointer-events:none;display:flex;align-items:flex-start;color:var(--accent);opacity:0;transition:opacity .3s;will-change:transform}',
     '.cursor.on{opacity:1}',
-    '.arrow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}',
+    '.arrow{position:relative;filter:drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 9px var(--accent-line)) drop-shadow(0 2px 3px rgba(0,0,0,.25))}',
+    '.halo{position:absolute;left:-14px;top:-14px;width:36px;height:36px;border-radius:50%;background:radial-gradient(circle,var(--accent-line) 0%,rgba(0,0,0,0) 68%);animation:halo 2.2s ease-in-out infinite}',
+    '@keyframes halo{50%{transform:scale(1.35);opacity:.6}}',
+    '.trail{position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483645}',
     '.arrow.plain{width:18px;height:22px;background:var(--accent);clip-path:polygon(0 0,0 78%,24% 60%,40% 100%,56% 93%,40% 55%,72% 55%);filter:none}',
-    '.tag{margin:17px 0 0 -3px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;line-height:1;padding:5px 8px;border-radius:3px 10px 10px 10px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.2)}',
+    '.tag{margin:17px 0 0 -3px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;line-height:1;padding:5px 9px;border-radius:4px 11px 11px 11px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 0 0 1px rgba(255,255,255,.25),0 4px 16px var(--accent-line)}',
     '.tag.pop{animation:pop .4s ' + SPRING + '}',
     '@keyframes pop{from{transform:scale(.6)}}',
     '.cursor.busy .arrow{animation:bob 1s ease-in-out infinite}',
@@ -158,6 +180,8 @@
     spark: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z',
     reply: 'M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3',
     down: 'M6 9l6 6 6-6',
+    undo: 'M3 7v6h6M3 13a9 9 0 1 0 2.6-6.4L3 9',
+    history: 'M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5M3.5 3.5v5h5',
   };
 
   // Icons are built node by node, like everything else here: no markup strings.
@@ -349,7 +373,32 @@
       acts.append(logBtn);
       node.append(log);
     }
+    if (entry.change) acts.append(undoButton(entry.change));
     return node;
+  }
+
+  var undone = {}; // change id -> true once it has been undone
+  var undoButtons = {}; // change id -> its Undo buttons, to update together
+
+  function undoButton(id) {
+    var btn = el('button', 'undo');
+    var label = el('span', '', 'Undo');
+    btn.append(icon('undo', 13), label);
+    btn.setAttribute('title', 'Put the files back the way they were before this change');
+    (undoButtons[id] = undoButtons[id] || []).push(btn);
+    if (undone[id]) markUndone(id);
+    btn.addEventListener('click', function () {
+      undoChange(id);
+    });
+    return btn;
+  }
+
+  function markUndone(id) {
+    undone[id] = true;
+    (undoButtons[id] || []).forEach(function (btn) {
+      btn.disabled = true;
+      btn.lastChild.textContent = 'Undone';
+    });
   }
 
   window.__bubble = { describe: describe, renderEntry: renderEntry, pathTo: pathTo, clampPoint: clampPoint, gapAt: gapAt, kindOf: kindOf, cornerFor: cornerFor };
@@ -369,7 +418,13 @@
   var close = el('button', 'close');
   close.setAttribute('aria-label', 'Close');
   close.append(icon('close', 16));
-  head.append(el('span', 'live'), el('span', 'title', 'Ask for a change'), close);
+  var histBtn = el('button', 'hbtn');
+  histBtn.setAttribute('aria-label', 'Changes');
+  histBtn.setAttribute('title', 'Changes');
+  histBtn.append(icon('history', 16));
+  var title = el('span', 'title', 'Ask for a change');
+  head.append(el('span', 'live'), title, histBtn, close);
+  var changesView = el('div', 'changes');
   var list = el('div', 'list');
   var empty = el('div', 'empty');
   var emptyRing = el('div', 'ring');
@@ -416,7 +471,7 @@
   row.append(pointBtn, sendBtn);
   composer.append(input, row);
   form.append(composer);
-  panel.append(head, list, statusLine, replyChip, chip, form);
+  panel.append(head, list, changesView, statusLine, replyChip, chip, form);
   var outline = el('div', 'outline');
   var outlineLabel = el('b');
   outline.append(outlineLabel);
@@ -426,9 +481,10 @@
   arrow.setAttribute('class', document.createElementNS ? 'arrow' : 'arrow plain');
   var ping = el('div', 'ping');
   var tag = el('div', 'tag', 'Claude');
-  cursor.append(ping, arrow, tag);
+  cursor.append(el('div', 'halo'), ping, arrow, tag);
+  var trail = el('canvas', 'trail');
   wrap.append(toggle, panel);
-  root.append(wrap, outline, flashBox, cursor);
+  root.append(wrap, outline, flashBox, trail, cursor);
   document.documentElement.appendChild(host);
 
   var pointed = null;
@@ -441,6 +497,8 @@
   var pointing = false;
   var replyTo = null; // the message of Claude's she is answering
   var liveSteps = [];
+  var allEntries = []; // the whole conversation, for the Changes view
+  var showingChanges = false;
   var workSince = 0;
   var workClock = null;
   var isOpen = false;
@@ -530,9 +588,88 @@
     }
   }
 
+  // Claude's pointer glides on a spring and leaves a short glowing trail.
+  var pos = { x: 0, y: 0 };
+  var goal = { x: 0, y: 0 };
+  var speed = { x: 0, y: 0 };
+  var trailPoints = [];
+  var moving = null;
+  var trailColor = '47,111,237';
+  var TRAIL_MS = 320;
+  var calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var pen = trail.getContext ? trail.getContext('2d') : null;
+
+  function drawCursor() {
+    cursor.style.transform = 'translate(' + pos.x + 'px,' + pos.y + 'px)';
+  }
+
+  function jumpCursor(x, y) {
+    var point = clampPoint(x, y, window.innerWidth, window.innerHeight);
+    pos.x = goal.x = point.x;
+    pos.y = goal.y = point.y;
+    speed.x = speed.y = 0;
+    trailPoints = [];
+    drawCursor();
+  }
+
+  function paintTrail(now) {
+    if (!pen) return;
+    var ratio = window.devicePixelRatio || 1;
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    if (trail.width !== Math.round(w * ratio) || trail.height !== Math.round(h * ratio)) {
+      trail.width = Math.round(w * ratio);
+      trail.height = Math.round(h * ratio);
+    }
+    pen.setTransform(ratio, 0, 0, ratio, 0, 0);
+    pen.clearRect(0, 0, w, h);
+    if (!cursor.classList.contains('on')) return;
+    pen.lineCap = 'round';
+    pen.shadowColor = 'rgba(' + trailColor + ',.9)';
+    for (var i = 1; i < trailPoints.length; i++) {
+      var a = trailPoints[i - 1];
+      var b = trailPoints[i];
+      var life = 1 - (now - b.t) / TRAIL_MS; // 1 = just drawn, 0 = gone
+      if (life <= 0) continue;
+      pen.strokeStyle = 'rgba(' + trailColor + ',' + (0.85 * life).toFixed(3) + ')';
+      pen.lineWidth = 1.5 + 6 * life;
+      pen.shadowBlur = 14 * life;
+      pen.beginPath();
+      pen.moveTo(a.x + 4, a.y + 4); // from the arrow's tip
+      pen.lineTo(b.x + 4, b.y + 4);
+      pen.stroke();
+    }
+  }
+
+  function frame(now) {
+    // A gentle spring: quick to leave, soft to land.
+    speed.x = (speed.x + (goal.x - pos.x) * 0.065) * 0.8;
+    speed.y = (speed.y + (goal.y - pos.y) * 0.065) * 0.8;
+    pos.x += speed.x;
+    pos.y += speed.y;
+    var still =
+      Math.abs(goal.x - pos.x) < 0.4 && Math.abs(goal.y - pos.y) < 0.4 && Math.abs(speed.x) < 0.3 && Math.abs(speed.y) < 0.3;
+    if (still) {
+      pos.x = goal.x;
+      pos.y = goal.y;
+      speed.x = speed.y = 0;
+    } else {
+      trailPoints.push({ x: pos.x, y: pos.y, t: now });
+    }
+    while (trailPoints.length && now - trailPoints[0].t > TRAIL_MS) trailPoints.shift();
+    drawCursor();
+    paintTrail(now);
+    moving = still && !trailPoints.length ? null : window.requestAnimationFrame(frame);
+  }
+
   function placeCursor(x, y) {
     var point = clampPoint(x, y, window.innerWidth, window.innerHeight);
-    cursor.style.transform = 'translate(' + point.x + 'px,' + point.y + 'px)';
+    if (calm || !window.requestAnimationFrame) return jumpCursor(point.x, point.y);
+    goal.x = point.x;
+    goal.y = point.y;
+    var rgb = /(\d+),\s*(\d+),\s*(\d+)/.exec(window.getComputedStyle ? window.getComputedStyle(cursor).color : '');
+    if (rgb) trailColor = rgb[1] + ',' + rgb[2] + ',' + rgb[3];
+    if (!moving) moving = window.requestAnimationFrame(frame);
   }
 
   function setTag(text) {
@@ -683,6 +820,114 @@
     scrollDown();
   }
 
+  var UNDO_PROBLEMS = {
+    conflict: "Can't undo that one: something changed the same spot since. Undo the later change first.",
+    busy: 'Wait until Claude has finished, then try again.',
+    unavailable: "Undo isn't available for this project.",
+  };
+
+  function undoChange(id) {
+    if (undone[id]) return;
+    (undoButtons[id] || []).forEach(function (btn) {
+      btn.disabled = true;
+      btn.lastChild.textContent = 'Undoing\u2026';
+    });
+    window
+      .fetch('/__bubble/undo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: id }),
+      })
+      .then(function (res) {
+        if (res.ok) return null;
+        return res.json().then(
+          function (body) {
+            return body.error || 'unavailable';
+          },
+          function () {
+            return 'unavailable';
+          },
+        );
+      }, function () {
+        return 'offline';
+      })
+      .then(function (problem) {
+        if (!problem) return; // the note that follows marks it undone and reloads
+        if (problem === 'done') return markUndone(id);
+        (undoButtons[id] || []).forEach(function (btn) {
+          btn.disabled = false;
+          btn.lastChild.textContent = 'Undo';
+        });
+        if (showingChanges) setChangesOpen(false);
+        show(el('div', 'msg error', UNDO_PROBLEMS[problem] || "That didn't go through. Check your connection and try again."), true);
+      });
+  }
+
+  function timeAgo(at) {
+    var seconds = Math.max(0, Math.round((Date.now() - Date.parse(at)) / 1000));
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return Math.floor(seconds / 60) + ' min ago';
+    if (seconds < 86400) return Math.floor(seconds / 3600) + ' h ago';
+    return new Date(at).toLocaleDateString();
+  }
+
+  // Every change Claude made, newest first, each with its edits and an Undo.
+  function renderChanges() {
+    changesView.replaceChildren();
+    var rows = [];
+    var asked = '';
+    allEntries.forEach(function (entry) {
+      if (entry.role === 'visitor') asked = entry.text;
+      if (entry.role === 'claude' && entry.change) rows.unshift({ entry: entry, asked: asked });
+    });
+    if (!rows.length) {
+      var none = el('div', 'empty');
+      none.append(el('div', '', 'No changes yet. When Claude edits something it shows up here, and you can undo it.'));
+      changesView.append(none);
+      return;
+    }
+    rows.forEach(function (row, i) {
+      var entry = row.entry;
+      var card = el('div', 'crow' + (undone[entry.change] ? ' undone' : ''));
+      card.style.animationDelay = Math.min(i, 8) * 35 + 'ms';
+      var files = (entry.files || []).join(', ');
+      card.append(
+        el('div', 'creq', row.asked || entry.text),
+        el('div', 'cmeta', timeAgo(entry.at) + (files ? ' \u00b7 ' + files : '')),
+      );
+      var acts = el('div', 'acts');
+      if (changeCount(entry.steps)) {
+        var log = el('div', 'log');
+        log.hidden = true;
+        var logBtn = el('button');
+        logBtn.append(el('span', '', 'Show edits'), icon('down', 13));
+        logBtn.addEventListener('click', function () {
+          var opening = log.hidden;
+          if (opening && !log.children.length) {
+            entry.steps.forEach(function (step) {
+              if (step.action === 'edit' || step.action === 'write') log.append(stepNode(step, true));
+            });
+          }
+          log.hidden = !opening;
+          logBtn.classList.toggle('openlog', opening);
+        });
+        acts.append(logBtn);
+        card.append(acts, log);
+      } else {
+        card.append(acts);
+      }
+      acts.append(undoButton(entry.change));
+      changesView.append(card);
+    });
+  }
+
+  function setChangesOpen(open) {
+    showingChanges = open;
+    panel.classList.toggle('hist', open);
+    title.textContent = open ? 'Changes' : 'Ask for a change';
+    if (open) renderChanges();
+  }
+
   function setPointing(on) {
     pointing = on;
     pointBtn.classList.toggle('on', on);
@@ -809,6 +1054,9 @@
   pointBtn.addEventListener('click', function () {
     setPointing(!pointing);
   });
+  histBtn.addEventListener('click', function () {
+    setChangesOpen(!showingChanges);
+  });
   chipClear.addEventListener('click', function () {
     setPointed(null);
   });
@@ -873,15 +1121,31 @@
   source.addEventListener('history', function (event) {
     var entries = JSON.parse(event.data);
     count = 0;
+    allEntries = entries.slice();
+    entries.forEach(function (entry) {
+      if (entry.undid) undone[entry.undid] = true;
+    });
     list.replaceChildren(empty);
     entries.forEach(function (entry) {
       show(renderEntry(entry), false);
     });
+    if (showingChanges) renderChanges();
   });
   source.addEventListener('entry', function (event) {
     var entry = JSON.parse(event.data);
+    allEntries.push(entry);
     show(renderEntry(entry), true);
+    if (showingChanges) renderChanges();
     if (entry.role === 'visitor') return;
+    if (entry.undid) {
+      // The files are back as they were: show the page that way.
+      markUndone(entry.undid);
+      if (showingChanges) renderChanges();
+      window.setTimeout(function () {
+        window.location.reload();
+      }, 900);
+      return;
+    }
     liveSteps = [];
     showLive();
     if (!isOpen) toggle.classList.add('unread');
@@ -936,18 +1200,14 @@
   setReply(null);
   outline.hidden = true;
   flashBox.hidden = true;
-  // Park the pointer by the bubble without animating, so its first glide
-  // starts from there and not from the top-left corner.
-  cursor.style.transition = 'none';
+  // Park the pointer by the bubble, so its first glide starts from there.
   var savedCorner = null;
   try {
     savedCorner = window.localStorage.getItem('bubble_corner');
   } catch (e) {}
   if (/^[tb][lr]$/.test(savedCorner || '')) setCorner(savedCorner);
   var home = toggle.getBoundingClientRect();
-  placeCursor(home.left + home.width / 2, home.top + home.height / 2);
-  void cursor.offsetWidth;
-  cursor.style.transition = '';
+  jumpCursor(home.left + home.width / 2, home.top + home.height / 2);
   showAfterReload();
   var wasOpen = false;
   try {

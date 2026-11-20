@@ -41,6 +41,7 @@ export function formatActivity(event, { now = new Date(), color = false, who = '
     }
     return lines.join('\n');
   }
+  if (event.type === 'undo') return head('undo', ['red', 'bold'], `undid "${oneLine(event.text)}"`);
   if (event.type === 'reply') return head('claude', ['green', 'bold'], oneLine(event.text));
   if (event.type === 'error') return head('failed', ['red', 'bold'], oneLine(event.detail));
   return '';
