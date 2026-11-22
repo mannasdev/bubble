@@ -77,7 +77,9 @@ export async function main(argv) {
   // begins with an empty folder.
   const chrome = findChrome();
   const shotsDir = path.join(os.tmpdir(), 'bubble-shots', crypto.createHash('sha256').update(projectDir).digest('hex').slice(0, 10));
-  fs.rmSync(shotsDir, { recursive: true, force: true });
+  // Old screenshots go; images she attached stay, so the chat can still show them.
+  fs.mkdirSync(shotsDir, { recursive: true });
+  for (const name of fs.readdirSync(shotsDir)) if (name.endsWith('.png')) fs.rmSync(path.join(shotsDir, name), { force: true });
   const camera = chrome ? createCamera({ targetPort: args.port, dir: shotsDir, chromePath: chrome }) : null;
   const spinner = createSpinner(process.stdout, { color: process.stdout.isTTY });
   const handleApi = createApi({
@@ -87,6 +89,7 @@ export async function main(argv) {
     owner: args.noTunnel,
     snapshots: createSnapshots(projectDir),
     camera,
+    mediaDir: shotsDir,
     // Everything that happens in the bubble is printed here as it happens.
     onActivity: (event) => {
       // While Claude works, a spinner with a timer sits under the last line.

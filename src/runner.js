@@ -55,13 +55,18 @@ export class RunError extends Error {
 }
 
 /** The text handed to Claude: her words, plus the element she pointed at. */
-export function buildPrompt(text, pointed, replyTo, notes, screenshot) {
+export function buildPrompt(text, pointed, replyTo, notes, screenshot, images) {
   const since = notes?.length ? `(Since your last reply: ${notes.join(' ')})\n\n` : '';
   const reply = replyTo ? `\n\n(She is replying to this earlier message of yours: "${replyTo}")` : '';
   const shot = screenshot
     ? `\n\n(A screenshot of what she is looking at is at ${screenshot}. Look at it with the Read tool first.)`
     : '';
-  return since + describePointed(text, pointed) + reply + shot;
+  const attached = images?.length
+    ? images.length === 1
+      ? `\n\n(She attached an image: ${images[0]}. Look at it with the Read tool.)`
+      : `\n\n(She attached ${images.length} images: ${images.join(', ')}. Look at them with the Read tool.)`
+    : '';
+  return since + describePointed(text, pointed) + reply + attached + shot;
 }
 
 /** Sent after a change, with a fresh screenshot, so Claude can check its own work. */
@@ -131,6 +136,9 @@ function brief(value) {
 /** What one tool call did, for the change log she sees. */
 function stepFor(block, projectDir, shotsDir) {
   const input = block.input ?? {};
+  if (block.name === 'Read' && shotsDir && String(input.file_path ?? '').startsWith(path.join(shotsDir, 'uploads') + path.sep)) {
+    return { action: 'image' };
+  }
   if (block.name === 'Read' && shotsDir && String(input.file_path ?? '').startsWith(shotsDir + path.sep)) {
     return { action: 'look' };
   }
@@ -159,6 +167,7 @@ export function runClaude({
   replyTo,
   notes,
   screenshot,
+  images,
   shotsDir,
   onStatus,
   onStep,
@@ -187,7 +196,7 @@ export function runClaude({
     // Her words go in on stdin, never as an argument: a message that starts
     // with a dash would otherwise be read as an option.
     child.stdin.on('error', () => {});
-    child.stdin.end(buildPrompt(text, pointed, replyTo, notes, screenshot));
+    child.stdin.end(buildPrompt(text, pointed, replyTo, notes, screenshot, images));
     const files = [];
     let result = null;
     let sawWork = false;

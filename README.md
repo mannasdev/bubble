@@ -58,6 +58,16 @@ index.html", "Edited index.html"). Afterwards each answer has an "N changes"
 button that opens the log, with what each edit replaced and what it put there.
 The same steps are saved with the conversation in `.bubble/history.json`.
 
+## Images and screenshots
+
+She can add up to four images to a message: the Image button, pasting
+(take a screenshot to the clipboard with Cmd+Shift+Ctrl+4, then Cmd+V in the
+message box), or dragging files onto it. Claude looks at them with her
+message, for things like "make this button look like this". Large photos are
+scaled down first; PNG, JPEG, GIF and WebP up to 10 MB are accepted. The
+images show in the chat, and are kept in your temporary folder, not in the
+project.
+
 ## Draw
 
 Next to Point there is Draw: drag a box over any part of the page. The box

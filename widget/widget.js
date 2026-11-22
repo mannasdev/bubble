@@ -198,6 +198,18 @@
     '.point:active{transform:scale(.96)}',
     '.point.on{background:var(--accent);border-color:var(--accent);color:#fff;animation:nudge 1.2s ease-in-out infinite}',
     '.tools{display:flex;gap:2px}',
+    // Images she attaches: a tray of thumbnails above what she types.
+    '.tray{display:flex;gap:8px;flex-wrap:wrap;padding:10px 10px 0}',
+    '.tray:empty{display:none}',
+    '.thumb{position:relative;width:56px;height:56px;border-radius:11px;overflow:hidden;border:1px solid var(--btn-line);background:var(--mine);box-shadow:0 2px 6px rgba(0,0,0,.12);animation:pop .3s ' + SPRING + '}',
+    '.thumb img{width:100%;height:100%;object-fit:cover;display:block}',
+    '.thumb.wait img{opacity:.45;filter:blur(1px)}',
+    '.thumb.wait::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;animation:spin .8s linear infinite}',
+    '.thumb button{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center}',
+    '.composer.dropping{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--accent-soft)}',
+    '.pics{display:flex;gap:5px;flex-wrap:wrap;margin:-3px -5px 6px}',
+    '.pics img{width:88px;height:66px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,.4);cursor:zoom-in;background:rgba(255,255,255,.2)}',
+    '.msg.visitor .body:empty{display:none}',
     // Drawing a box: a clear sheet over the page catches the drag.
     '.sheet{position:fixed;inset:0;z-index:2147483646;cursor:crosshair;touch-action:none;background:rgba(0,0,0,.04)}',
     '.box{position:fixed;pointer-events:none;z-index:2147483646;border:2px dashed var(--accent);background:var(--accent-soft);border-radius:6px;box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 18px var(--accent-line)}',
@@ -256,6 +268,7 @@
     send: 'M12 19V5M5 12l7-7 7 7',
     point: 'M4 4l6.5 15.5 2.3-6.7 6.7-2.3L4 4z',
     box: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3',
+    image: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM4 16l4.5-4.5 4 4L16 12.5l4 4M9 9.5h.01',
     spark: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z',
     reply: 'M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3',
     down: 'M6 9l6 6 6-6',
@@ -389,14 +402,14 @@
   }
 
   // Message text always goes in as text, never as markup.
-  var VERBS = { search: 'Searched for', read: 'Looked at', edit: 'Edited', write: 'Wrote', look: 'Looked at the page' };
+  var VERBS = { search: 'Searched for', read: 'Looked at', edit: 'Edited', write: 'Wrote', look: 'Looked at the page', image: 'Looked at your image' };
 
   // One line of the change log; edits can show what was replaced with what.
   function stepNode(step, withDiff) {
     var node = el('div', 'step');
     node.append(
       el('span', 'verb', (VERBS[step.action] || 'Did') + ' '),
-      el('span', 'file', step.action === 'look' ? '' : step.file || '\u201c' + (step.query || '') + '\u201d'),
+      el('span', 'file', step.action === 'look' || step.action === 'image' ? '' : step.file || '\u201c' + (step.query || '') + '\u201d'),
     );
     if (withDiff && step.action === 'edit' && (step.before || step.after)) {
       var diff = el('div', 'diff');
@@ -416,9 +429,23 @@
   }
 
   function renderEntry(entry) {
-    if (entry.role !== 'claude' && !entry.replyTo) return el('div', 'msg ' + entry.role, entry.text);
+    var pictures = entry.role === 'visitor' && entry.images && entry.images.length;
+    if (entry.role !== 'claude' && !entry.replyTo && !pictures) return el('div', 'msg ' + entry.role, entry.text);
     var node = el('div', 'msg ' + entry.role);
     if (entry.replyTo) node.append(el('div', 'quote', entry.replyTo));
+    if (pictures) {
+      var pics = el('div', 'pics');
+      entry.images.forEach(function (name) {
+        var img = el('img');
+        img.setAttribute('src', '/__bubble/media/' + encodeURIComponent(name));
+        img.setAttribute('alt', 'Attached image');
+        img.addEventListener('click', function () {
+          window.open('/__bubble/media/' + encodeURIComponent(name), '_blank', 'noopener');
+        });
+        pics.append(img);
+      });
+      node.append(pics);
+    }
     node.append(el('div', 'body', entry.text));
     if (entry.role !== 'claude') return node;
 
@@ -524,6 +551,7 @@
       return /[*{}?\\|]/.test(q) || !q ? 'Looking through the files\u2026' : 'Looking for \u201c' + q.slice(0, 24) + '\u201d\u2026';
     }
     if (step.action === 'look') return 'Looking at the page\u2026';
+    if (step.action === 'image') return 'Looking at your image\u2026';
     if (step.action === 'read') return 'Reading ' + file + '\u2026';
     if (step.action === 'edit') return 'Changing ' + file + '\u2026';
     if (step.action === 'write') return 'Writing ' + file + '\u2026';
@@ -615,9 +643,18 @@
   drawBtn.append(icon('box', 15), drawLabel);
   drawBtn.setAttribute('title', 'Drag a box around the part you mean');
   var tools = el('div', 'tools');
-  tools.append(pointBtn, drawBtn);
+  var imageBtn = el('button', 'point');
+  imageBtn.append(icon('image', 15), el('span', '', 'Image'));
+  imageBtn.setAttribute('title', 'Add an image or screenshot (you can also paste or drop one)');
+  var picker = el('input');
+  picker.setAttribute('type', 'file');
+  picker.setAttribute('accept', 'image/png,image/jpeg,image/gif,image/webp');
+  picker.setAttribute('multiple', '');
+  picker.hidden = true;
+  tools.append(pointBtn, drawBtn, imageBtn, picker);
+  var tray = el('div', 'tray');
   row.append(tools, sendBtn);
-  composer.append(input, row);
+  composer.append(tray, input, row);
   form.append(composer);
   panel.append(head, strip, list, changesView, goalView, statusLine, replyChip, chip, form);
   var outline = el('div', 'outline');
@@ -1021,7 +1058,93 @@
   function fit() {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 132) + 'px';
-    sendBtn.disabled = !String(input.value || '').trim();
+    var waiting = (attachments || []).some(function (a) {
+      return !a.id;
+    });
+    sendBtn.disabled = waiting || (!String(input.value || '').trim() && !(attachments || []).length);
+  }
+
+  // ---- Images she attaches: picked, pasted or dropped ----
+  var attachments = []; // { id, url, node }; id is set once the upload is done
+  var MAX_ATTACH = 4;
+  var BIG_SIDE = 1800;
+
+  // Large photos are scaled down before they are sent; small ones go as they are.
+  function shrink(file) {
+    if (!window.createImageBitmap || file.type === 'image/gif') return Promise.resolve(file);
+    return window.createImageBitmap(file).then(
+      function (bitmap) {
+        var side = Math.max(bitmap.width, bitmap.height);
+        if (side <= BIG_SIDE && file.size <= 3 * 1024 * 1024) return file;
+        var scale = Math.min(1, BIG_SIDE / side);
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(bitmap.width * scale);
+        canvas.height = Math.round(bitmap.height * scale);
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        var type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        return new Promise(function (resolve) {
+          canvas.toBlob(
+            function (blob) {
+              resolve(blob || file);
+            },
+            type,
+            0.88,
+          );
+        });
+      },
+      function () {
+        return file;
+      },
+    );
+  }
+
+  function dropAttachment(item) {
+    attachments = attachments.filter(function (a) {
+      return a !== item;
+    });
+    item.node.remove();
+    if (window.URL && window.URL.revokeObjectURL) window.URL.revokeObjectURL(item.url);
+    fit();
+  }
+
+  function addFiles(files) {
+    Array.prototype.slice.call(files || []).forEach(function (file) {
+      if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) return;
+      if (attachments.length >= MAX_ATTACH) return;
+      var item = { id: null, url: window.URL.createObjectURL(file), node: el('div', 'thumb wait') };
+      var img = el('img');
+      img.setAttribute('src', item.url);
+      img.setAttribute('alt', 'Image to send');
+      var rm = el('button');
+      rm.setAttribute('aria-label', 'Remove this image');
+      rm.append(icon('close', 10));
+      rm.addEventListener('click', function () {
+        dropAttachment(item);
+      });
+      item.node.append(img, rm);
+      tray.append(item.node);
+      attachments.push(item);
+      fit();
+      shrink(file)
+        .then(function (blob) {
+          return window.fetch('/__bubble/upload', { method: 'POST', headers: { 'content-type': blob.type || file.type }, body: blob });
+        })
+        .then(function (res) {
+          if (!res.ok) throw new Error(String(res.status));
+          return res.json();
+        })
+        .then(function (answer) {
+          item.id = answer.id;
+          item.node.classList.remove('wait');
+          fit();
+        })
+        .catch(function (err) {
+          dropAttachment(item);
+          var why = String(err && err.message) === '413' ? 'That image is too big (10 MB at most).' : "That image didn't upload. Try again.";
+          show(el('div', 'msg error', why), true);
+        });
+    });
+    input.focus();
   }
 
   function setPointed(value) {
@@ -1624,8 +1747,17 @@
 
   function send() {
     var text = String(input.value || '').trim();
-    if (!text) return;
+    var ready = attachments.filter(function (a) {
+      return a.id;
+    });
+    if (ready.length !== attachments.length) return;
+    if (!text && !ready.length) return;
     var body = { text: text };
+    if (ready.length) {
+      body.images = ready.map(function (a) {
+        return a.id;
+      });
+    }
     if (pointed) body.pointed = pointed;
     if (replyTo) body.replyTo = replyTo;
     body.view = currentView(pointedFocus);
@@ -1644,6 +1776,7 @@
         input.value = '';
         setPointed(null);
         setReply(null);
+        ready.forEach(dropAttachment);
       })
       .catch(function () {
         show(el('div', 'msg error', "That didn't send. Check your connection and try again."), true);
@@ -1728,6 +1861,37 @@
   });
   sendBtn.addEventListener('click', send);
   input.addEventListener('input', fit);
+  imageBtn.addEventListener('click', function () {
+    picker.click();
+  });
+  picker.addEventListener('change', function () {
+    addFiles(picker.files);
+    picker.value = '';
+  });
+  // A screenshot on the clipboard (Cmd+Shift+Ctrl+4, then Cmd+V) is attached.
+  input.addEventListener('paste', function (event) {
+    var items = (event.clipboardData && event.clipboardData.files) || [];
+    var images = Array.prototype.filter.call(items, function (f) {
+      return /^image\//.test(f.type);
+    });
+    if (!images.length) return;
+    event.preventDefault();
+    addFiles(images);
+  });
+  composer.addEventListener('dragover', function (event) {
+    if (!event.dataTransfer || Array.prototype.indexOf.call(event.dataTransfer.types || [], 'Files') === -1) return;
+    event.preventDefault();
+    composer.classList.add('dropping');
+  });
+  composer.addEventListener('dragleave', function () {
+    composer.classList.remove('dropping');
+  });
+  composer.addEventListener('drop', function (event) {
+    composer.classList.remove('dropping');
+    if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+    event.preventDefault();
+    addFiles(event.dataTransfer.files);
+  });
   input.addEventListener('keydown', function (event) {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
       event.preventDefault();

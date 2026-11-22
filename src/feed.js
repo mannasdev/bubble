@@ -1,7 +1,7 @@
 // Turns what happens in the bubble into lines for the terminal bubble runs in.
 
 const CODES = { dim: 2, bold: 1, red: 31, green: 32, cyan: 36 };
-const VERBS = { search: 'searched for', read: 'looked at', edit: 'edited', write: 'wrote', look: 'looked at the page' };
+const VERBS = { search: 'searched for', read: 'looked at', edit: 'edited', write: 'wrote', look: 'looked at the page', image: 'looked at her image' };
 const INDENT = ' '.repeat(18);
 
 const oneLine = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
@@ -27,7 +27,8 @@ export function formatActivity(event, { now = new Date(), color = false, who = '
   const head = (label, style, text) => `${time}  ${paint(label.padEnd(8), ...style)}${text}`;
 
   if (event.type === 'message') {
-    const lines = [head(who, ['cyan', 'bold'], oneLine(event.text))];
+    const lines = [head(who, ['cyan', 'bold'], oneLine(event.text) || '(an image)')];
+    if (event.images) lines.push(INDENT + paint(`attached ${event.images} image${event.images === 1 ? '' : 's'}`, 'dim'));
     if (event.pointed) lines.push(INDENT + paint(pointedText(event.pointed), 'dim'));
     if (event.replyTo) lines.push(INDENT + paint(`replying to "${oneLine(event.replyTo)}"`, 'dim'));
     return lines.join('\n');

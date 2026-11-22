@@ -9,6 +9,36 @@ const MAX_POINTED_HTML = 500;
 const MAX_REPLY_TO = 200;
 const MAX_STEPS = 40;
 const FAILED_TEXT = "Something went wrong on Mannas's side. Tell him.";
+const MAX_IMAGE = 10 * 1024 * 1024;
+const MAX_IMAGES = 4;
+const IMAGE_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|gif|webp)$/;
+const IMAGE_TYPES = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+const IMAGE_ONLY_TEXT = 'Take a look at the attached image.';
+
+/** What kind of image these bytes are, judged by the bytes themselves. */
+function imageKind(b) {
+  if (b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
+  if (b.length > 6 && /^GIF8[79]a$/.test(b.subarray(0, 6).toString('latin1'))) return 'gif';
+  if (b.length > 12 && b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP') return 'webp';
+  return null;
+}
+
+/** Read raw bytes, giving up (null) once they pass the limit. */
+function readBytes(req, max) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let size = 0;
+    let over = false;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > max) over = true;
+      else chunks.push(c);
+    });
+    req.on('end', () => resolve(over ? null : Buffer.concat(chunks)));
+    req.on('error', () => resolve(null));
+  });
+}
 
 function json(res, status, value) {
   const body = JSON.stringify(value);
@@ -103,7 +133,10 @@ export function createApi({
   onActivity = () => {},
   snapshots = null,
   camera = null,
+  mediaDir = camera?.dir ?? null,
 }) {
+  // Images she attaches are kept with the screenshots, outside the project.
+  const uploadsDir = mediaDir ? path.join(mediaDir, 'uploads') : null;
   const listeners = new Set();
   const queue = [];
   let working = false;
@@ -206,7 +239,8 @@ export function createApi({
         replyTo: job.replyTo,
         notes: told.length ? told : undefined,
         screenshot: beforeShot ?? undefined,
-        shotsDir: look ? camera.dir : undefined,
+        images: job.images?.length ? job.images : undefined,
+        shotsDir: look || job.images?.length ? mediaDir : undefined,
         sessionId,
         onStatus: setStatus,
         onStep: addStep,
@@ -375,17 +409,57 @@ export function createApi({
       return json(res, 400, { error: 'bad request' });
     }
     const text = typeof body?.text === 'string' ? body.text.trim() : '';
-    if (!text || text.length > MAX_TEXT) return json(res, 400, { error: 'bad message' });
+    const wanted = Array.isArray(body?.images) ? body.images : [];
+    const images = wanted.filter((name) => typeof name === 'string' && IMAGE_NAME.test(name) && uploadsDir && fs.existsSync(path.join(uploadsDir, name)));
+    if (images.length !== wanted.length || images.length > MAX_IMAGES) return json(res, 400, { error: 'bad images' });
+    if ((!text && !images.length) || text.length > MAX_TEXT) return json(res, 400, { error: 'bad message' });
     // A conversation that has been quiet too long ends here, before this
     // message is saved and makes it look recent again.
     if (state.session() === null) state.clearSession();
     const replyTo = typeof body.replyTo === 'string' ? body.replyTo.trim().slice(0, MAX_REPLY_TO) : '';
-    const entry = add('visitor', text, replyTo ? { replyTo } : {});
-    const job = { text, pointed: cleanPointed(body.pointed), replyTo: replyTo || undefined, view: cleanView(body.view) };
+    const entry = add('visitor', text, { ...(replyTo ? { replyTo } : {}), ...(images.length ? { images } : {}) });
+    const job = {
+      text: text || IMAGE_ONLY_TEXT,
+      pointed: cleanPointed(body.pointed),
+      replyTo: replyTo || undefined,
+      view: cleanView(body.view),
+      images: images.map((name) => path.join(uploadsDir, name)),
+    };
     queue.push(job);
-    onActivity({ type: 'message', text: job.text, pointed: job.pointed, replyTo: job.replyTo });
+    onActivity({
+      type: 'message',
+      text,
+      pointed: job.pointed,
+      replyTo: job.replyTo,
+      ...(images.length ? { images: images.length } : {}),
+    });
     json(res, 202, { id: entry.id });
     drain();
+  }
+
+  async function upload(req, res) {
+    if (!uploadsDir) return json(res, 404, { error: 'not found' });
+    const bytes = await readBytes(req, MAX_IMAGE);
+    if (bytes === null) return json(res, 413, { error: 'too large' });
+    const kind = imageKind(bytes);
+    if (!kind) return json(res, 415, { error: 'not an image' });
+    const name = `${crypto.randomUUID()}.${kind}`;
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    fs.writeFileSync(path.join(uploadsDir, name), bytes);
+    json(res, 200, { id: name });
+  }
+
+  function media(name, res) {
+    const file = uploadsDir && IMAGE_NAME.test(name) ? path.join(uploadsDir, name) : null;
+    if (!file || !fs.existsSync(file)) return json(res, 404, { error: 'not found' });
+    const body = fs.readFileSync(file);
+    res.writeHead(200, {
+      'content-type': IMAGE_TYPES[name.split('.').pop()],
+      'content-length': body.length,
+      'x-content-type-options': 'nosniff',
+      'cache-control': 'private, max-age=86400',
+    });
+    res.end(body);
   }
 
   async function undo(req, res) {
@@ -523,6 +597,8 @@ export function createApi({
     if (req.method === 'GET' && route === '/__bubble/events') return events(req, res);
     if (req.method === 'GET' && route === '/__bubble/poll') return poll(req, res);
     if (req.method === 'POST' && route === '/__bubble/send') return send(req, res);
+    if (req.method === 'POST' && route === '/__bubble/upload') return upload(req, res);
+    if (req.method === 'GET' && route.startsWith('/__bubble/media/')) return media(route.slice('/__bubble/media/'.length), res);
     if (req.method === 'POST' && route === '/__bubble/undo' && snapshots) return undo(req, res);
     const goalAction = /^\/__bubble\/goal(?:\/(start|pause|resume|stop|clear))?$/.exec(route);
     if (req.method === 'POST' && goalAction) return goalRoute(goalAction[1] ?? 'goal', req, res);

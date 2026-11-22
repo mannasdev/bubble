@@ -155,3 +155,8 @@ test('goal progress in the feed, with a bar', () => {
   assert.equal(f({ type: 'goal', event: 'done', text: 'launch', done: 4, total: 4 }), '14:02:11  goal    ██████████ 4/4  done: "launch"');
   assert.equal(f({ type: 'goal', event: 'stopped', text: 'launch', done: 1, total: 4 }), '14:02:11  goal    stopped at 1/4');
 });
+
+test('attached images are mentioned in the feed', () => {
+  assert.equal(f({ type: 'message', text: 'like this', images: 2 }), '14:02:11  her     like this\n                  attached 2 images');
+  assert.equal(f({ type: 'message', text: '', images: 1 }), '14:02:11  her     (an image)\n                  attached 1 image');
+});

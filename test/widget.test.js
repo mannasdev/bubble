@@ -388,3 +388,11 @@ test('looking at a screenshot is a thought about the page', () => {
   const { w } = boot();
   assert.equal(w.__bubble.thoughtFor({ action: 'look' }), 'Looking at the page…');
 });
+
+test('her message shows the images she attached, above her words', () => {
+  const { w } = boot();
+  const node = w.__bubble.renderEntry({ role: 'visitor', text: 'like this', images: ['a.png', 'b.jpg'] });
+  const pics = node.children.find((c) => c.className === 'pics');
+  assert.deepEqual(pics.children.map((i) => [i.tagName, i.getAttribute('src')]), [['IMG', '/__bubble/media/a.png'], ['IMG', '/__bubble/media/b.jpg']]);
+  assert.equal(node.children.find((c) => c.className === 'body').textContent, 'like this');
+});

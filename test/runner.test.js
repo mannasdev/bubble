@@ -300,3 +300,24 @@ test('a planning run can only look, never change files', async () => {
   const argv = r.recorded().argv;
   assert.equal(argv[argv.indexOf('--tools') + 1], 'Read,Glob,Grep');
 });
+
+test('buildPrompt points claude at the images she attached', () => {
+  assert.equal(
+    buildPrompt('like this', null, null, null, null, ['/m/uploads/a.png', '/m/uploads/b.jpg']),
+    'like this\n\n(She attached 2 images: /m/uploads/a.png, /m/uploads/b.jpg. Look at them with the Read tool.)',
+  );
+  assert.equal(
+    buildPrompt('like this', null, null, null, null, ['/m/uploads/a.png']),
+    'like this\n\n(She attached an image: /m/uploads/a.png. Look at it with the Read tool.)',
+  );
+});
+
+test('reading an image she attached is reported as such', async () => {
+  const media = fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-media-'));
+  const steps = [];
+  const projectDir = tmp();
+  await withEnv({ FAKE_MODE: 'look', FAKE_SHOT: path.join(media, 'uploads', 'x.png'), FAKE_RECORD: path.join(projectDir, 'r.json') }, () =>
+    runClaude({ projectDir, text: 'x', shotsDir: media, onStatus() {}, onStep: (s) => steps.push(s), claudeBin: FAKE }),
+  );
+  assert.deepEqual(steps[0], { action: 'image' });
+});
