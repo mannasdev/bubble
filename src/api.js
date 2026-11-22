@@ -222,7 +222,7 @@ export function createApi({
     const clip = f
       ? { x: Math.max(0, f.x - pad), y: Math.max(0, f.y - pad), width: f.width + pad * 2, height: f.height + pad * 2 }
       : { x: view.scrollX, y: view.scrollY, width: view.width, height: view.height };
-    return { path: view.path, width: view.width, height: view.height, clip, name };
+    return { path: view.path, width: view.width, height: view.height, scrollX: view.scrollX, scrollY: view.scrollY, clip, name };
   }
 
   async function runJob(job) {

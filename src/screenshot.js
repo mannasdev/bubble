@@ -120,7 +120,7 @@ export function createCamera({ targetPort, dir, chromePath = findChrome(), timeo
     return starting;
   }
 
-  async function shoot({ path: pagePath = '/', width = 1280, height = 800, clip, whole = false, name = 'shot' }) {
+  async function shoot({ path: pagePath = '/', width = 1280, height = 800, scrollX = 0, scrollY = 0, clip, whole = false, name = 'shot' }) {
     if (!chromePath) return null;
     let target = null;
     let b;
@@ -148,6 +148,12 @@ export function createCamera({ targetPort, dir, chromePath = findChrome(), timeo
       if (nav.errorText) return null;
       await loaded;
       await new Promise((r) => setTimeout(r, 400)); // fonts and late layout
+      // Scroll to where she was, so fixed headers, lazy images and anything that
+      // changes as it scrolls into view look as they did on her screen.
+      if (!whole && (scrollX || scrollY)) {
+        await call('Runtime.evaluate', { expression: `window.scrollTo(${Math.round(scrollX)}, ${Math.round(scrollY)})` });
+        await new Promise((r) => setTimeout(r, 600));
+      }
       let area;
       if (whole) {
         // The whole page in one picture, scaled down when it is long.

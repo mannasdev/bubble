@@ -599,8 +599,8 @@ test('claude gets a screenshot of what she sees, then checks its change against 
   await a.post({ text: 'make it red', view: VIEW });
   const h = await a.settled(2);
   assert.deepEqual(a.camera.shots, [
-    { path: '/pricing', width: 1200, height: 800, clip: { x: 40, y: 440, width: 320, height: 170 }, name: 'before' },
-    { path: '/pricing', width: 1200, height: 800, clip: { x: 0, y: 380, width: 440, height: 290 }, name: 'after' },
+    { path: '/pricing', width: 1200, height: 800, scrollX: 0, scrollY: 300, clip: { x: 40, y: 440, width: 320, height: 170 }, name: 'before' },
+    { path: '/pricing', width: 1200, height: 800, scrollX: 0, scrollY: 300, clip: { x: 0, y: 380, width: 440, height: 290 }, name: 'after' },
   ]);
   assert.equal(calls[0].screenshot, '/tmp/bubble-shots/test/1-before.png');
   assert.equal(calls[0].shotsDir, '/tmp/bubble-shots/test');
@@ -615,7 +615,7 @@ test('with nothing to focus on, the shot is what she can see', async (t) => {
   const a = await cameraSetup(t, async () => ({ reply: 'ok', sessionId: 's', files: [] }));
   await a.post({ text: 'hi', view: { ...VIEW, focus: null } });
   await a.settled(2);
-  assert.deepEqual(a.camera.shots, [{ path: '/pricing', width: 1200, height: 800, clip: { x: 0, y: 300, width: 1200, height: 800 }, name: 'before' }]);
+  assert.deepEqual(a.camera.shots, [{ path: '/pricing', width: 1200, height: 800, scrollX: 0, scrollY: 300, clip: { x: 0, y: 300, width: 1200, height: 800 }, name: 'before' }]);
 });
 
 test('no change means no second look; a failed check keeps the first answer', async (t) => {

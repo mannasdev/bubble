@@ -105,6 +105,12 @@ dev server directly, without any login, so pages behind a login show what a
 logged-out visitor sees. Screenshots are kept in your temporary folder, not
 in the project.
 
+The hidden copy is scrolled to where she was, so sticky headers, lazy images
+and anything that appears as it scrolls into view look as they did for her.
+It is still a fresh load, though: a carousel shows its first slide, and menus
+or pop-ups she opened are closed. For those, a real screenshot pasted into the
+message is exact.
+
 ## Undo
 
 Every answer that changed files has an Undo button, and the clock button in
