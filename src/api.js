@@ -51,8 +51,9 @@ function cleanPointed(p) {
 }
 
 /**
- * Everything under /__bubble/: the widget file, the live event stream, and
- * the endpoint that takes a message and queues it for Claude.
+ * Everything under /__bubble/: the widget file, the live event stream (and
+ * the same news for a page that has to ask), and the endpoint that takes a
+ * message and queues it for Claude.
  */
 export function createApi({
   state,
@@ -245,6 +246,18 @@ export function createApi({
     });
   }
 
+  /**
+   * The same news as the event stream, for a page that asks instead of
+   * listening. Some links (Cloudflare's temporary ones) hold a stream back, so
+   * the widget falls back to this. `after` is how many entries it already has.
+   */
+  function poll(req, res) {
+    const history = state.history();
+    const asked = Number(new URL(req.url, 'http://x').searchParams.get('after'));
+    const after = Number.isInteger(asked) && asked >= 0 && asked <= history.length ? asked : 0;
+    json(res, 200, { total: history.length, after, entries: history.slice(after), status, steps });
+  }
+
   return function handleApi(req, res) {
     const route = new URL(req.url, 'http://x').pathname;
     if (req.method === 'GET' && route === '/__bubble/widget.js') {
@@ -253,6 +266,7 @@ export function createApi({
       return res.end(body);
     }
     if (req.method === 'GET' && route === '/__bubble/events') return events(req, res);
+    if (req.method === 'GET' && route === '/__bubble/poll') return poll(req, res);
     if (req.method === 'POST' && route === '/__bubble/send') return send(req, res);
     if (req.method === 'POST' && route === '/__bubble/undo' && snapshots) return undo(req, res);
     json(res, 404, { error: 'not found' });

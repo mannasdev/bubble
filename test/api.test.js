@@ -511,3 +511,38 @@ test('after an undo, the next request tells claude what was undone, once', async
     undefined,
   ]);
 });
+
+test('a page that cannot listen can ask for the news instead', async (t) => {
+  let release;
+  const a = await setup(async ({ onStatus, onStep }) => {
+    onStatus('Making the change…');
+    onStep({ kind: 'read', text: 'looked at index.html' });
+    await new Promise((r) => (release = r));
+    return { reply: 'done', sessionId: 's', files: ['index.html'] };
+  });
+  t.after(a.close);
+  const poll = async (after) => (await fetch(`${a.base}/__bubble/poll?after=${after}`)).json();
+  assert.deepEqual(await poll(0), { total: 0, after: 0, entries: [], status: '', steps: [] });
+
+  await a.send({ text: 'make it big' });
+  for (let i = 0; i < 200 && !release; i++) await sleep(5);
+  const during = await poll(0);
+  assert.equal(during.total, 1);
+  assert.deepEqual(during.entries.map((e) => [e.role, e.text]), [['visitor', 'make it big']]);
+  assert.equal(during.status, 'Making the change…');
+  assert.deepEqual(during.steps, [{ kind: 'read', text: 'looked at index.html' }]);
+
+  release();
+  await a.settled(2);
+  const done = await poll(1);
+  assert.equal(done.total, 2);
+  assert.equal(done.after, 1);
+  assert.deepEqual(done.entries.map((e) => [e.role, e.text]), [['claude', 'done']]);
+  for (let i = 0; i < 200 && (await poll(2)).status; i++) await sleep(5);
+  assert.deepEqual(await poll(2), { total: 2, after: 2, entries: [], status: '', steps: [] });
+
+  // A count the server does not recognise gets the whole conversation again.
+  assert.equal((await poll(99)).after, 0);
+  assert.equal((await poll(99)).entries.length, 2);
+  assert.equal((await poll('x')).entries.length, 2);
+});

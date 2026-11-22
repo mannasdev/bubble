@@ -74,7 +74,7 @@ class El {
   scrollIntoView() {}
 }
 
-function boot() {
+function boot(over = {}) {
   const html = new El('html');
   const body = html.appendChild(new El('body'));
   const document = {
@@ -97,6 +97,7 @@ function boot() {
     setTimeout,
     clearTimeout,
     console,
+    ...over,
   };
   w.window = w;
   w.top = w;
@@ -328,4 +329,57 @@ test('each step Claude takes becomes a short thought', () => {
   assert.equal(t({ action: 'write', file: 'a/new.css' }), 'Writing new.css…');
   assert.equal(t({ action: 'search', query: 'Get started' }), 'Looking for “Get started”…');
   assert.equal(t({ action: 'search', query: '**/*.{html,css}' }), 'Looking through the files…');
+});
+
+// Long waits run at once, so the wait for a silent stream does not slow the tests.
+const quick = (fn, ms) => setTimeout(fn, ms >= 1000 ? 1 : ms);
+const until = async (check) => {
+  for (let i = 0; i < 200; i++) {
+    if (check()) return;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  throw new Error('never happened');
+};
+
+test('asks for news when the stream stays silent, then only for what is new', async () => {
+  const asked = [];
+  const answers = [
+    { total: 1, after: 0, entries: [{ id: 'a', role: 'visitor', text: 'make it big' }], status: 'Thinking…', steps: [] },
+    { total: 2, after: 1, entries: [{ id: 'b', role: 'claude', text: 'Done.' }], status: '', steps: [] },
+  ];
+  const { html } = boot({
+    setTimeout: quick,
+    fetch: async (url) => {
+      asked.push(url);
+      const news = answers.shift();
+      return news ? { ok: true, json: async () => news } : { ok: false };
+    },
+  });
+  await until(() => asked.length >= 3);
+  assert.deepEqual(asked.slice(0, 3), ['/__bubble/poll?after=0', '/__bubble/poll?after=1', '/__bubble/poll?after=2']);
+  const text = html.children.find((c) => c.id === '__bubble_root').shadowRoot.textContent;
+  assert.match(text, /make it big/);
+  assert.match(text, /Done\./);
+});
+
+test('does not ask for news once the stream has delivered something', async () => {
+  const asked = [];
+  const heard = {};
+  boot({
+    setTimeout: quick,
+    EventSource: class {
+      addEventListener(name, fn) {
+        heard[name] = fn;
+      }
+    },
+    fetch: async (url) => {
+      asked.push(url);
+      return { ok: false };
+    },
+    // Runs before the wait for the stream is over.
+    queueMicrotask,
+  });
+  heard.history({ data: '[]' });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.deepEqual(asked, []);
 });

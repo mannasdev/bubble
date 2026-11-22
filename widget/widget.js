@@ -1423,9 +1423,11 @@
     true,
   );
 
-  var source = new window.EventSource('/__bubble/events');
-  source.addEventListener('history', function (event) {
-    var entries = JSON.parse(event.data);
+  function onHistory(entries) {
+    seen = {};
+    entries.forEach(function (entry) {
+      if (entry.id) seen[entry.id] = true;
+    });
     count = 0;
     allEntries = entries.slice();
     entries.forEach(function (entry) {
@@ -1436,9 +1438,11 @@
       show(renderEntry(entry), false);
     });
     if (showingChanges) renderChanges();
-  });
-  source.addEventListener('entry', function (event) {
-    var entry = JSON.parse(event.data);
+  }
+  function onEntry(entry) {
+    // A held-back stream can deliver late what asking already showed.
+    if (entry.id && seen[entry.id]) return;
+    if (entry.id) seen[entry.id] = true;
     allEntries.push(entry);
     show(renderEntry(entry), true);
     if (showingChanges) renderChanges();
@@ -1468,19 +1472,17 @@
       hideCursor();
     }
     workPath = null;
-  });
-  source.addEventListener('step', function (event) {
-    var step = JSON.parse(event.data);
+  }
+  function onStep(step) {
     liveSteps.push(step);
     showLive();
     if (working) setThought(thoughtFor(step));
-  });
-  source.addEventListener('steps', function (event) {
-    liveSteps = JSON.parse(event.data);
+  }
+  function onSteps(steps) {
+    liveSteps = steps;
     showLive();
-  });
-  source.addEventListener('status', function (event) {
-    var text = JSON.parse(event.data);
+  }
+  function onStatus(text) {
     statusText.textContent = text;
     statusLine.hidden = !text;
     wrap.classList.toggle('working', !!text);
@@ -1500,7 +1502,106 @@
     }
     if (text && !working) startWork();
     if (!text && working) stopWork();
-  });
+  }
+
+  // The page hears news over a live stream. Some links hold a stream back
+  // (Cloudflare's temporary ones do), so when nothing arrives soon after
+  // connecting, the page asks for the news every moment or two instead.
+  var seen = {};
+  var streaming = false;
+  var asking = false;
+  var askTimer = null;
+  var known = -1; // how many entries asking has shown; -1 before the first answer
+  var knownStatus = null;
+  var knownSteps = 0;
+  var STREAM_WAIT = 3000;
+  var ASK_EVERY = 1500;
+
+  function later(fn, ms) {
+    var timer = window.setTimeout(fn, ms);
+    // Under Node (the tests) a waiting timer must not keep the process alive.
+    if (timer && typeof timer.unref === 'function') timer.unref();
+    return timer;
+  }
+
+  function heard(handler) {
+    return function (event) {
+      streaming = true;
+      if (askTimer) window.clearTimeout(askTimer);
+      askTimer = null;
+      asking = false;
+      try {
+        window.sessionStorage.removeItem('bubble_ask');
+      } catch (e) {}
+      handler(JSON.parse(event.data));
+    };
+  }
+
+  function applyNews(news) {
+    if (!news || typeof news.total !== 'number' || !Array.isArray(news.entries)) return;
+    if (known < 0 || news.after !== known) {
+      // The first answer, or the conversation was started afresh: show it whole.
+      if (news.after !== 0) {
+        known = 0;
+        return;
+      }
+      onHistory(news.entries);
+    } else {
+      news.entries.forEach(onEntry);
+    }
+    known = news.total;
+    var steps = Array.isArray(news.steps) ? news.steps : [];
+    if (steps.length !== knownSteps) {
+      knownSteps = steps.length;
+      onSteps(steps.slice());
+      if (working && steps.length) setThought(thoughtFor(steps[steps.length - 1]));
+    }
+    var text = typeof news.status === 'string' ? news.status : '';
+    if (text !== knownStatus) {
+      knownStatus = text;
+      onStatus(text);
+    }
+  }
+
+  function ask() {
+    askTimer = null;
+    if (streaming || !asking) return;
+    var again = function () {
+      if (!streaming && asking) askTimer = later(ask, ASK_EVERY);
+    };
+    window
+      .fetch('/__bubble/poll?after=' + (known < 0 ? 0 : known), { cache: 'no-store' })
+      .then(function (res) {
+        return res && res.ok && typeof res.json === 'function' ? res.json() : null;
+      })
+      .then(function (news) {
+        if (!streaming && asking) applyNews(news);
+      })
+      .catch(function () {})
+      .then(again);
+  }
+
+  function startAsking() {
+    if (streaming || asking) return;
+    asking = true;
+    // Remember it, so the next page on this link does not wait to find out.
+    try {
+      window.sessionStorage.setItem('bubble_ask', '1');
+    } catch (e) {}
+    ask();
+  }
+
+  var source = new window.EventSource('/__bubble/events');
+  source.addEventListener('history', heard(onHistory));
+  source.addEventListener('entry', heard(onEntry));
+  source.addEventListener('step', heard(onStep));
+  source.addEventListener('steps', heard(onSteps));
+  source.addEventListener('status', heard(onStatus));
+  var askedBefore = false;
+  try {
+    askedBefore = window.sessionStorage.getItem('bubble_ask') === '1';
+  } catch (e) {}
+  later(startAsking, askedBefore ? 0 : STREAM_WAIT);
 
   list.appendChild(empty);
   statusLine.hidden = true;
