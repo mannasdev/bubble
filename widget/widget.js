@@ -61,7 +61,7 @@
     '@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--accent-line)}50%{box-shadow:0 0 0 5px rgba(0,0,0,0)}}',
     '.title{flex:1;font-weight:650;font-size:13.5px;letter-spacing:.005em}',
     '.close{width:28px;height:28px;border-radius:50%;color:var(--muted);display:grid;place-items:center;transition:background .15s,color .15s,transform .3s ' + SPRING + '}',
-    '.close:hover{background:var(--mine);color:var(--fg);transform:rotate(90deg)}',
+    '.close:hover{background:var(--mine);color:var(--fg);transform:translateY(1px)}',
 
     '.list{flex:1;min-height:72px;overflow-y:auto;padding:14px 12px 8px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin}',
     '.empty{margin:auto;padding:8px 14px 14px;text-align:center;color:var(--muted);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:8px;animation:rise .5s ' + EASE + ' both}',
@@ -252,6 +252,7 @@
   var ICONS = {
     chat: 'M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.3-4.6A8.5 8.5 0 1 1 21 11.5z',
     close: 'M18 6 6 18M6 6l12 12',
+    minimize: 'M6 12h12',
     send: 'M12 19V5M5 12l7-7 7 7',
     point: 'M4 4l6.5 15.5 2.3-6.7 6.7-2.3L4 4z',
     box: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3',
@@ -544,8 +545,10 @@
   var panel = el('div', 'panel');
   var head = el('div', 'head');
   var close = el('button', 'close');
-  close.setAttribute('aria-label', 'Close');
-  close.append(icon('close', 16));
+  // It only tucks the panel away; the conversation and any work carry on.
+  close.setAttribute('aria-label', 'Minimize');
+  close.setAttribute('title', 'Minimize');
+  close.append(icon('minimize', 16));
   var histBtn = el('button', 'hbtn');
   histBtn.setAttribute('aria-label', 'Changes');
   histBtn.setAttribute('title', 'Changes');
