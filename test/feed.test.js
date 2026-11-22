@@ -141,3 +141,7 @@ test('a drawn box in the feed', () => {
     '14:02:11  her     photo here\n                  drew a box around empty space (200×100 at 0,0)',
   );
 });
+
+test('looking at a screenshot reads as looking at the page', () => {
+  assert.equal(f({ type: 'step', step: { action: 'look' } }), '14:02:11          looked at the page');
+});

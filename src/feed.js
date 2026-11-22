@@ -1,7 +1,7 @@
 // Turns what happens in the bubble into lines for the terminal bubble runs in.
 
 const CODES = { dim: 2, bold: 1, red: 31, green: 32, cyan: 36 };
-const VERBS = { search: 'searched for', read: 'looked at', edit: 'edited', write: 'wrote' };
+const VERBS = { search: 'searched for', read: 'looked at', edit: 'edited', write: 'wrote', look: 'looked at the page' };
 const INDENT = ' '.repeat(18);
 
 const oneLine = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
@@ -34,8 +34,8 @@ export function formatActivity(event, { now = new Date(), color = false, who = '
   }
   if (event.type === 'step') {
     const step = event.step;
-    const what = step.action === 'search' ? `"${step.query}"` : step.file;
-    const lines = [head('', [], paint(`${VERBS[step.action] ?? step.action} ${what}`, 'dim'))];
+    const what = step.action === 'search' ? ` "${step.query}"` : step.file ? ` ${step.file}` : '';
+    const lines = [head('', [], paint(`${VERBS[step.action] ?? step.action}${what}`, 'dim'))];
     if (step.action === 'edit') {
       if (step.before) lines.push(`${INDENT}  ${paint(`- ${step.before}`, 'red')}`);
       if (step.after) lines.push(`${INDENT}  ${paint(`+ ${step.after}`, 'green')}`);

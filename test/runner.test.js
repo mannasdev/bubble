@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runClaude, stopAll, buildPrompt, RunError, SETTINGS_JSON, SYSTEM_PROMPT, OWNER_PROMPT } from '../src/runner.js';
+import { runClaude, stopAll, buildPrompt, checkPrompt, RunError, SETTINGS_JSON, SYSTEM_PROMPT, OWNER_PROMPT } from '../src/runner.js';
 
 const FAKE = fileURLToPath(new URL('../fakes/claude.js', import.meta.url));
 const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-run-')));
@@ -251,4 +251,45 @@ test('buildPrompt puts notes about what happened since before her words', () => 
     buildPrompt('again but darker', null, null, ['She undid your change for "x". The files it touched (a.css) are back to how they were before that change.']),
     '(Since your last reply: She undid your change for "x". The files it touched (a.css) are back to how they were before that change.)\n\nagain but darker',
   );
+});
+
+test('screenshots live outside the project, so that folder is added for reading', async () => {
+  const r = run('ok', { shotsDir: '/tmp/bubble-shots/abc' });
+  await r.promise;
+  const argv = r.recorded().argv;
+  assert.deepEqual(argv.slice(argv.indexOf('--add-dir'), argv.indexOf('--add-dir') + 2), ['--add-dir', '/tmp/bubble-shots/abc']);
+});
+
+test('without screenshots no folder is added', async () => {
+  const r = run('ok');
+  await r.promise;
+  assert.equal(r.recorded().argv.includes('--add-dir'), false);
+});
+
+test('buildPrompt points claude at the screenshot of what she sees', () => {
+  assert.equal(
+    buildPrompt('make it bigger', null, null, null, '/tmp/s/1-before.png'),
+    'make it bigger\n\n(A screenshot of what she is looking at is at /tmp/s/1-before.png. Look at it with the Read tool first.)',
+  );
+});
+
+test('the check after a change asks claude to look and fix, then answer', () => {
+  assert.equal(
+    checkPrompt('/tmp/s/2-after.png'),
+    'Here is a screenshot of the page after your change: /tmp/s/2-after.png. Look at it with the Read tool. ' +
+      'If anything looks wrong or does not match what was asked, fix it now. ' +
+      'Then give your final reply as before: one or two plain sentences about the result.',
+  );
+});
+
+test('reading a screenshot is reported as looking at the page', async () => {
+  const shots = fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-shots-'));
+  const shot = path.join(shots, '1-before.png');
+  const steps = [];
+  const projectDir = tmp();
+  const record = path.join(projectDir, 'record.json');
+  await withEnv({ FAKE_MODE: 'look', FAKE_SHOT: shot, FAKE_RECORD: record }, () =>
+    runClaude({ projectDir, text: 'x', shotsDir: shots, onStatus() {}, onStep: (s) => steps.push(s), claudeBin: FAKE }),
+  );
+  assert.deepEqual(steps, [{ action: 'look' }, { action: 'read', file: 'index.html' }]);
 });

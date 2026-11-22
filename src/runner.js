@@ -55,10 +55,22 @@ export class RunError extends Error {
 }
 
 /** The text handed to Claude: her words, plus the element she pointed at. */
-export function buildPrompt(text, pointed, replyTo, notes) {
+export function buildPrompt(text, pointed, replyTo, notes, screenshot) {
   const since = notes?.length ? `(Since your last reply: ${notes.join(' ')})\n\n` : '';
   const reply = replyTo ? `\n\n(She is replying to this earlier message of yours: "${replyTo}")` : '';
-  return since + describePointed(text, pointed) + reply;
+  const shot = screenshot
+    ? `\n\n(A screenshot of what she is looking at is at ${screenshot}. Look at it with the Read tool first.)`
+    : '';
+  return since + describePointed(text, pointed) + reply + shot;
+}
+
+/** Sent after a change, with a fresh screenshot, so Claude can check its own work. */
+export function checkPrompt(screenshot) {
+  return (
+    `Here is a screenshot of the page after your change: ${screenshot}. Look at it with the Read tool. ` +
+    'If anything looks wrong or does not match what was asked, fix it now. ' +
+    'Then give your final reply as before: one or two plain sentences about the result.'
+  );
 }
 
 function describePointed(text, pointed) {
@@ -117,8 +129,11 @@ function brief(value) {
 }
 
 /** What one tool call did, for the change log she sees. */
-function stepFor(block, projectDir) {
+function stepFor(block, projectDir, shotsDir) {
   const input = block.input ?? {};
+  if (block.name === 'Read' && shotsDir && String(input.file_path ?? '').startsWith(shotsDir + path.sep)) {
+    return { action: 'look' };
+  }
   const file = input.file_path ? relativeTo(projectDir, input.file_path) : undefined;
   if (block.name === 'Grep' || block.name === 'Glob') return { action: 'search', query: brief(input.pattern) };
   if (block.name === 'Read') return { action: 'read', file };
@@ -143,6 +158,8 @@ export function runClaude({
   sessionId,
   replyTo,
   notes,
+  screenshot,
+  shotsDir,
   onStatus,
   onStep,
   owner = false,
@@ -159,6 +176,7 @@ export function runClaude({
     '--append-system-prompt', owner ? OWNER_PROMPT : SYSTEM_PROMPT,
     '--output-format', 'stream-json', '--verbose',
   ];
+  if (shotsDir) args.push('--add-dir', shotsDir);
   if (sessionId) args.push('--resume', sessionId);
 
   return new Promise((resolve, reject) => {
@@ -168,7 +186,7 @@ export function runClaude({
     // Her words go in on stdin, never as an argument: a message that starts
     // with a dash would otherwise be read as an option.
     child.stdin.on('error', () => {});
-    child.stdin.end(buildPrompt(text, pointed, replyTo, notes));
+    child.stdin.end(buildPrompt(text, pointed, replyTo, notes, screenshot));
     const files = [];
     let result = null;
     let sawWork = false;
@@ -202,7 +220,7 @@ export function runClaude({
         sawWork = true;
         for (const block of event.message?.content ?? []) {
           if (block.type !== 'tool_use') continue;
-          const step = stepFor(block, projectDir);
+          const step = stepFor(block, projectDir, shotsDir);
           if (step) onStep?.(step);
           if (LOOKING.has(block.name)) onStatus?.('Looking at the code…');
           if (CHANGING.has(block.name)) {

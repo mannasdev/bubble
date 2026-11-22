@@ -7,6 +7,11 @@ import { startTunnel } from './tunnel.js';
 import { formatActivity, createSpinner } from './feed.js';
 import { stopAll } from './runner.js';
 import { createSnapshots } from './snapshots.js';
+import { createCamera, findChrome } from './screenshot.js';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 export const USAGE = `Usage: bubble <port> [--local] [--host name] [--fresh]
 
@@ -68,6 +73,12 @@ export async function main(argv) {
   if (args.fresh) state.clearSession();
   if (args.host) state.setHost(args.host);
 
+  // Screenshots of the page for Claude, kept outside the project. Each start
+  // begins with an empty folder.
+  const chrome = findChrome();
+  const shotsDir = path.join(os.tmpdir(), 'bubble-shots', crypto.createHash('sha256').update(projectDir).digest('hex').slice(0, 10));
+  fs.rmSync(shotsDir, { recursive: true, force: true });
+  const camera = chrome ? createCamera({ targetPort: args.port, dir: shotsDir, chromePath: chrome }) : null;
   const spinner = createSpinner(process.stdout, { color: process.stdout.isTTY });
   const handleApi = createApi({
     state,
@@ -75,6 +86,7 @@ export async function main(argv) {
     widgetPath: fileURLToPath(new URL('../widget/widget.js', import.meta.url)),
     owner: args.noTunnel,
     snapshots: createSnapshots(projectDir),
+    camera,
     // Everything that happens in the bubble is printed here as it happens.
     onActivity: (event) => {
       // While Claude works, a spinner with a timer sits under the last line.
@@ -105,6 +117,7 @@ export async function main(argv) {
   }
 
   console.log(`\n  ${base}/?k=${state.key}\n\n  ${note} Ctrl+C to stop.\n`);
+  if (!camera) console.log('  Screenshots are off: no Chrome found. Claude will work from the code alone.\n');
   if (args.noTunnel && process.platform === 'darwin' && !process.env.BUBBLE_NO_OPEN) {
     spawn('open', [`${base}/?k=${state.key}`], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
   }
@@ -113,6 +126,7 @@ export async function main(argv) {
     const stop = () => {
       spinner.stop();
       stopAll();
+      camera?.close();
       tunnel?.stop();
       server.closeAllConnections();
       server.close();

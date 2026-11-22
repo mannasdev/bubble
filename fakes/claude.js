@@ -33,6 +33,11 @@ if (mode === 'ok') {
   use('Write', path.join(process.cwd(), 'new.css'), { content: 'x'.repeat(500) });
   use('Edit', file, { old_string: 'a'.repeat(300), new_string: '' });
   say({ type: 'result', subtype: 'success', is_error: false, result: 'Done.', session_id: 'sess-1' });
+} else if (mode === 'look') {
+  say({ type: 'system', subtype: 'init', session_id: 'sess-1' });
+  use('Read', process.env.FAKE_SHOT);
+  use('Read', path.join(process.cwd(), 'index.html'));
+  say({ type: 'result', subtype: 'success', is_error: false, result: 'Looks right.', session_id: 'sess-1' });
 } else if (mode === 'error') {
   say({ type: 'system', subtype: 'init', session_id: 'sess-1' });
   say({ type: 'assistant', message: { content: [{ type: 'text', text: 'hm' }] } });

@@ -6,7 +6,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { createApi } from '../src/api.js';
 import { openState } from '../src/state.js';
-import { RunError } from '../src/runner.js';
+import { RunError, checkPrompt } from '../src/runner.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -545,4 +545,99 @@ test('a page that cannot listen can ask for the news instead', async (t) => {
   assert.equal((await poll(99)).after, 0);
   assert.equal((await poll(99)).entries.length, 2);
   assert.equal((await poll('x')).entries.length, 2);
+});
+
+function fakeCamera() {
+  const shots = [];
+  return {
+    shots,
+    dir: '/tmp/bubble-shots/test',
+    shoot: async (opts) => {
+      shots.push(opts);
+      return `/tmp/bubble-shots/test/${shots.length}-${opts.name}.png`;
+    },
+    close() {},
+  };
+}
+
+async function cameraSetup(t, run) {
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-api-'));
+  const state = openState(projectDir);
+  const camera = fakeCamera();
+  const handler = createApi({ state, projectDir, widgetPath: '/dev/null', run, camera });
+  const server = http.createServer(handler);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  const post = (body) =>
+    fetch(`http://127.0.0.1:${server.address().port}/__bubble/send`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+  const settled = async (count) => {
+    for (let i = 0; i < 200 && state.history().length < count; i++) await sleep(10);
+    return state.history();
+  };
+  return { camera, post, settled };
+}
+
+const VIEW = { path: '/pricing', width: 1200, height: 800, scrollX: 0, scrollY: 300, focus: { x: 100, y: 500, width: 200, height: 50 } };
+
+test('claude gets a screenshot of what she sees, then checks its change against a second one', async (t) => {
+  const calls = [];
+  const a = await cameraSetup(t, async (job) => {
+    calls.push(job);
+    if (calls.length === 1) {
+      job.onStep({ action: 'edit', file: 'a.css', before: '1', after: '2' });
+      return { reply: 'Made it red.', sessionId: 's1', files: ['a.css'] };
+    }
+    job.onStep({ action: 'look' });
+    job.onStep({ action: 'edit', file: 'b.css', before: '3', after: '4' });
+    return { reply: 'Made it red and fixed the overlap.', sessionId: 's1', files: ['b.css'] };
+  });
+  await a.post({ text: 'make it red', view: VIEW });
+  const h = await a.settled(2);
+  assert.deepEqual(a.camera.shots, [
+    { path: '/pricing', width: 1200, height: 800, clip: { x: 40, y: 440, width: 320, height: 170 }, name: 'before' },
+    { path: '/pricing', width: 1200, height: 800, clip: { x: 0, y: 380, width: 440, height: 290 }, name: 'after' },
+  ]);
+  assert.equal(calls[0].screenshot, '/tmp/bubble-shots/test/1-before.png');
+  assert.equal(calls[0].shotsDir, '/tmp/bubble-shots/test');
+  assert.equal(calls[1].text, checkPrompt('/tmp/bubble-shots/test/2-after.png'));
+  assert.equal(calls[1].sessionId, 's1');
+  assert.equal(h[1].text, 'Made it red and fixed the overlap.');
+  assert.deepEqual(h[1].files, ['a.css', 'b.css']);
+  assert.deepEqual(h[1].steps.map((s) => s.action), ['edit', 'look', 'edit']);
+});
+
+test('with nothing to focus on, the shot is what she can see', async (t) => {
+  const a = await cameraSetup(t, async () => ({ reply: 'ok', sessionId: 's', files: [] }));
+  await a.post({ text: 'hi', view: { ...VIEW, focus: null } });
+  await a.settled(2);
+  assert.deepEqual(a.camera.shots, [{ path: '/pricing', width: 1200, height: 800, clip: { x: 0, y: 300, width: 1200, height: 800 }, name: 'before' }]);
+});
+
+test('no change means no second look; a failed check keeps the first answer', async (t) => {
+  let n = 0;
+  const a = await cameraSetup(t, async () => {
+    n++;
+    if (n === 1) return { reply: 'Which button?', sessionId: 's', files: [] };
+    if (n === 2) return { reply: 'Done.', sessionId: 's', files: ['a.css'] };
+    throw new RunError('failed', 'boom');
+  });
+  await a.post({ text: 'one', view: VIEW });
+  await a.settled(2);
+  assert.equal(a.camera.shots.length, 1);
+  await a.post({ text: 'two', view: VIEW });
+  const h = await a.settled(4);
+  assert.equal(h[3].role, 'claude');
+  assert.equal(h[3].text, 'Done.');
+});
+
+test('a view that is not well formed is ignored', async (t) => {
+  const a = await cameraSetup(t, async () => ({ reply: 'ok', sessionId: 's', files: [] }));
+  await a.post({ text: 'x', view: { path: 'javascript:alert(1)', width: 'wide' } });
+  await a.settled(2);
+  assert.deepEqual(a.camera.shots, []);
 });

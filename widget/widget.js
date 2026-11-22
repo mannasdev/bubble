@@ -333,14 +333,14 @@
   }
 
   // Message text always goes in as text, never as markup.
-  var VERBS = { search: 'Searched for', read: 'Looked at', edit: 'Edited', write: 'Wrote' };
+  var VERBS = { search: 'Searched for', read: 'Looked at', edit: 'Edited', write: 'Wrote', look: 'Looked at the page' };
 
   // One line of the change log; edits can show what was replaced with what.
   function stepNode(step, withDiff) {
     var node = el('div', 'step');
     node.append(
       el('span', 'verb', (VERBS[step.action] || 'Did') + ' '),
-      el('span', 'file', step.file || '\u201c' + (step.query || '') + '\u201d'),
+      el('span', 'file', step.action === 'look' ? '' : step.file || '\u201c' + (step.query || '') + '\u201d'),
     );
     if (withDiff && step.action === 'edit' && (step.before || step.after)) {
       var diff = el('div', 'diff');
@@ -467,6 +467,7 @@
       var q = String(step.query || '');
       return /[*{}?\\|]/.test(q) || !q ? 'Looking through the files\u2026' : 'Looking for \u201c' + q.slice(0, 24) + '\u201d\u2026';
     }
+    if (step.action === 'look') return 'Looking at the page\u2026';
     if (step.action === 'read') return 'Reading ' + file + '\u2026';
     if (step.action === 'edit') return 'Changing ' + file + '\u2026';
     if (step.action === 'write') return 'Writing ' + file + '\u2026';
@@ -572,6 +573,16 @@
   var pointed = null;
   var pointedPath = null; // where she pointed, for the next message
   var pointedLabel = ''; // how an empty space she pointed at is described to her
+  var pointedFocus = null; // the area she pointed at or drew, in page coordinates
+
+  // A box on screen as a box on the page, so it holds when the page scrolls.
+  function onPage(r) {
+    var left = r.left !== undefined ? r.left : r.x;
+    var top = r.top !== undefined ? r.top : r.y;
+    var width = r.width !== undefined ? r.width : r.right - r.left;
+    var height = r.height !== undefined ? r.height : r.bottom - r.top;
+    return { x: left + (window.scrollX || 0), y: top + (window.scrollY || 0), width: width, height: height };
+  }
   var drawing = false;
   var sheet = null; // the layer that catches the drag while drawing
   var liveBox = null; // the box while it is being dragged
@@ -945,7 +956,10 @@
 
   function setPointed(value) {
     pointed = value;
-    if (!value) pointedPath = null;
+    if (!value) {
+      pointedPath = null;
+      pointedFocus = null;
+    }
     chip.hidden = !value;
     // She sees the words on the thing she picked; Claude gets the selector.
     var name = value && value.text ? '\u201c' + value.text.slice(0, 40) + '\u201d' : value && value.selector;
@@ -1219,6 +1233,7 @@
       text: text,
     });
     pointedPath = shown.length ? pathTo(shown[0]) : null;
+    pointedFocus = onPage(b);
     dropBox();
     keptBox = el('div', 'box kept');
     keptBox.append(el('b', '', size));
@@ -1248,6 +1263,15 @@
     var body = { text: text };
     if (pointed) body.pointed = pointed;
     if (replyTo) body.replyTo = replyTo;
+    // Where she is on the page, so Claude can be shown a screenshot of it.
+    body.view = {
+      path: window.location.pathname + window.location.search,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: window.scrollX || 0,
+      scrollY: window.scrollY || 0,
+      focus: pointedFocus,
+    };
     sendBtn.disabled = true;
     restart(sendBtn, 'sent');
     // Set before sending: the "working" signal can arrive before the reply.
@@ -1401,6 +1425,7 @@
         pointedLabel = space.label;
         setPointed(space.payload);
         pointedPath = pathTo(space.near);
+        pointedFocus = onPage(space.box);
       } else {
         setPointed({
           selector: describe(target),
@@ -1408,6 +1433,7 @@
           html: String(target.outerHTML || '').slice(0, 500),
         });
         pointedPath = pathTo(target);
+        pointedFocus = onPage(target.getBoundingClientRect());
       }
       setPointing(false);
       input.focus();
@@ -1483,6 +1509,7 @@
     showLive();
   }
   function onStatus(text) {
+    if (working && /^Checking/.test(text)) setThought(text);
     statusText.textContent = text;
     statusLine.hidden = !text;
     wrap.classList.toggle('working', !!text);

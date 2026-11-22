@@ -65,6 +65,20 @@ stays on the page (and scrolls with it) until the message is sent, and Claude
 is told where the box is, what sits inside it and the text inside it. Useful
 for "this whole area" or a spot that is not one element.
 
+## Claude sees the page
+
+With each message, bubble takes a screenshot of what she is looking at (cropped
+to what she pointed at or drew, or else her screen) with a headless Chrome and
+gives it to Claude. After a change it takes another one, so Claude can check
+its work and fix what looks wrong before it answers. This adds a few seconds.
+
+It uses Google Chrome (or Chromium, Edge, Brave, or Playwright's Chromium) if
+one is installed; set `BUBBLE_CHROME` to choose one. Without one, bubble says
+so at start and Claude works from the code alone. The screenshot opens your
+dev server directly, without any login, so pages behind a login show what a
+logged-out visitor sees. Screenshots are kept in your temporary folder, not
+in the project.
+
 ## Undo
 
 Every answer that changed files has an Undo button, and the clock button in

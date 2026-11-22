@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
-import { runClaude, RunError } from './runner.js';
+import { runClaude, RunError, checkPrompt } from './runner.js';
 
 const MAX_BODY = 16 * 1024;
 const MAX_TEXT = 2000;
@@ -50,6 +50,22 @@ function cleanPointed(p) {
   return { selector: str(p.selector, 300), text: str(p.text, 120), html: str(p.html, MAX_POINTED_HTML) };
 }
 
+/** Where she is on the page, for screenshots. Anything odd means no screenshot. */
+function cleanView(v) {
+  if (!v || typeof v !== 'object') return undefined;
+  const num = (n, min, max) => (Number.isFinite(n) ? Math.min(Math.max(Math.round(n), min), max) : null);
+  const width = num(v.width, 320, 3000);
+  const height = num(v.height, 320, 3000);
+  if (typeof v.path !== 'string' || !v.path.startsWith('/') || v.path.startsWith('//') || v.path.length > 500) return undefined;
+  if (width === null || height === null) return undefined;
+  const f = v.focus;
+  const focus =
+    f && typeof f === 'object' && [f.x, f.y, f.width, f.height].every(Number.isFinite)
+      ? { x: num(f.x, 0, 100000), y: num(f.y, 0, 100000), width: num(f.width, 1, 3000), height: num(f.height, 1, 3000) }
+      : null;
+  return { path: v.path, width, height, scrollX: num(v.scrollX, 0, 100000) ?? 0, scrollY: num(v.scrollY, 0, 100000) ?? 0, focus };
+}
+
 /**
  * Everything under /__bubble/: the widget file, the live event stream (and
  * the same news for a page that has to ask), and the endpoint that takes a
@@ -63,6 +79,7 @@ export function createApi({
   owner = false,
   onActivity = () => {},
   snapshots = null,
+  camera = null,
 }) {
   const listeners = new Set();
   const queue = [];
@@ -116,10 +133,23 @@ export function createApi({
   })();
   const saveNotes = () => fs.writeFileSync(notesFile, JSON.stringify(notes));
 
+  // The part of the page a screenshot should show: what she pointed at with
+  // some room around it, or else what she could see.
+  function shotOf(view, name) {
+    const pad = name === 'after' ? 120 : 60;
+    const f = view.focus;
+    const clip = f
+      ? { x: Math.max(0, f.x - pad), y: Math.max(0, f.y - pad), width: f.width + pad * 2, height: f.height + pad * 2 }
+      : { x: view.scrollX, y: view.scrollY, width: view.width, height: view.height };
+    return { path: view.path, width: view.width, height: view.height, clip, name };
+  }
+
   async function runJob(job) {
     steps = [];
     const told = notes;
     const before = snapshots ? await snapshots.take() : null;
+    const look = camera && job.view;
+    const beforeShot = look ? await camera.shoot(shotOf(job.view, 'before')) : null;
     const attempt = (sessionId) =>
       run({
         projectDir,
@@ -127,6 +157,8 @@ export function createApi({
         pointed: job.pointed,
         replyTo: job.replyTo,
         notes: told.length ? told : undefined,
+        screenshot: beforeShot ?? undefined,
+        shotsDir: look ? camera.dir : undefined,
         sessionId,
         onStatus: setStatus,
         onStep: addStep,
@@ -142,6 +174,31 @@ export function createApi({
         result = await attempt(null);
       }
       if (result.sessionId) state.setSession(result.sessionId);
+      // After a change, Claude looks at the page and can fix what it sees.
+      if (look && result.files.length) {
+        setStatus('Checking how it looks\u2026');
+        const afterShot = await camera.shoot(shotOf(job.view, 'after'));
+        if (afterShot) {
+          try {
+            const check = await run({
+              projectDir,
+              text: checkPrompt(afterShot),
+              sessionId: result.sessionId,
+              shotsDir: camera.dir,
+              onStatus: setStatus,
+              onStep: addStep,
+              owner,
+            });
+            result = {
+              reply: check.reply,
+              sessionId: check.sessionId || result.sessionId,
+              files: [...new Set([...result.files, ...check.files])],
+            };
+          } catch {
+            // Keep the first answer: the change itself was made.
+          }
+        }
+      }
       if (told.length) {
         notes = notes.slice(told.length);
         saveNotes();
@@ -192,9 +249,9 @@ export function createApi({
     if (state.session() === null) state.clearSession();
     const replyTo = typeof body.replyTo === 'string' ? body.replyTo.trim().slice(0, MAX_REPLY_TO) : '';
     const entry = add('visitor', text, replyTo ? { replyTo } : {});
-    const job = { text, pointed: cleanPointed(body.pointed), replyTo: replyTo || undefined };
+    const job = { text, pointed: cleanPointed(body.pointed), replyTo: replyTo || undefined, view: cleanView(body.view) };
     queue.push(job);
-    onActivity({ type: 'message', ...job });
+    onActivity({ type: 'message', text: job.text, pointed: job.pointed, replyTo: job.replyTo });
     json(res, 202, { id: entry.id });
     drain();
   }

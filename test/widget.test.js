@@ -383,3 +383,8 @@ test('does not ask for news once the stream has delivered something', async () =
   await new Promise((r) => setTimeout(r, 40));
   assert.deepEqual(asked, []);
 });
+
+test('looking at a screenshot is a thought about the page', () => {
+  const { w } = boot();
+  assert.equal(w.__bubble.thoughtFor({ action: 'look' }), 'Looking at the page…');
+});
