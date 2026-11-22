@@ -145,3 +145,13 @@ test('a drawn box in the feed', () => {
 test('looking at a screenshot reads as looking at the page', () => {
   assert.equal(f({ type: 'step', step: { action: 'look' } }), '14:02:11          looked at the page');
 });
+
+test('goal progress in the feed, with a bar', () => {
+  assert.equal(f({ type: 'goal', event: 'planned', text: 'launch', done: 0, total: 3 }), '14:02:11  goal    "launch": planned 3 steps');
+  assert.equal(
+    f({ type: 'goal', event: 'step', text: 'launch', done: 1, total: 4, number: 2, step: 'Add hover states' }),
+    '14:02:11  goal    ███░░░░░░░ 1/4  step 2: Add hover states',
+  );
+  assert.equal(f({ type: 'goal', event: 'done', text: 'launch', done: 4, total: 4 }), '14:02:11  goal    ██████████ 4/4  done: "launch"');
+  assert.equal(f({ type: 'goal', event: 'stopped', text: 'launch', done: 1, total: 4 }), '14:02:11  goal    stopped at 1/4');
+});

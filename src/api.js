@@ -50,6 +50,29 @@ function cleanPointed(p) {
   return { selector: str(p.selector, 300), text: str(p.text, 120), html: str(p.html, MAX_POINTED_HTML) };
 }
 
+const MAX_GOAL = 300;
+const MAX_GOAL_STEPS = 12;
+const MAX_STEP_TEXT = 160;
+
+/** The numbered lines of Claude's plan, as steps (at most 8). */
+export function parsePlan(text) {
+  const out = [];
+  for (const line of String(text ?? '').split('\n')) {
+    const m = /^\s*\d+[.)]\s+(.+?)\s*$/.exec(line);
+    if (m) out.push(m[1].replace(/\*\*/g, '').slice(0, MAX_STEP_TEXT));
+  }
+  return out.slice(0, 8);
+}
+
+function planPrompt(goal) {
+  return (
+    `She wants this for the site: "${goal}". Look at the page and the code, then plan it as 3 to 8 small, concrete steps. ` +
+    'Each step should be one change she can see on the page. Do not change any files now. ' +
+    'Reply with only the numbered steps, one per line, each under 12 words, in plain words for a designer. ' +
+    'If the goal is too unclear to plan, ask one short question instead.'
+  );
+}
+
 /** Where she is on the page, for screenshots. Anything odd means no screenshot. */
 function cleanView(v) {
   if (!v || typeof v !== 'object') return undefined;
@@ -103,6 +126,29 @@ export function createApi({
     return entry;
   };
 
+  // The goal she set, worked through step by step on autopilot.
+  const goalFile = path.join(projectDir, '.bubble', 'goal.json');
+  let goal = (() => {
+    try {
+      const g = JSON.parse(fs.readFileSync(goalFile, 'utf8'));
+      // Nothing runs on its own after a restart: a running goal waits.
+      if (g.status === 'running') g.status = 'paused';
+      if (g.status === 'planning') Object.assign(g, { status: 'failed', error: 'Planning was interrupted. Try again.' });
+      for (const s of g.steps ?? []) if (s.status === 'doing') s.status = 'todo';
+      return g;
+    } catch {
+      return null;
+    }
+  })();
+  const saveGoal = () => {
+    if (goal) fs.writeFileSync(goalFile, JSON.stringify(goal, null, 2));
+    else fs.rmSync(goalFile, { force: true });
+    emit('goal', goal);
+  };
+  const doneCount = () => goal.steps.filter((s) => s.status === 'done').length;
+  const goalNews = (event, extra = {}) =>
+    onActivity({ type: 'goal', event, text: goal.text, done: doneCount(), total: goal.steps.length, ...extra });
+
   const addStep = (step) => {
     if (steps.length >= MAX_STEPS) return;
     steps.push(step);
@@ -135,7 +181,9 @@ export function createApi({
 
   // The part of the page a screenshot should show: what she pointed at with
   // some room around it, or else what she could see.
-  function shotOf(view, name) {
+  function shotOf(view, name, whole) {
+    // A goal can touch any part of the page, so it is shown the whole page.
+    if (whole) return { path: view.path, width: view.width, height: view.height, whole: true, name };
     const pad = name === 'after' ? 120 : 60;
     const f = view.focus;
     const clip = f
@@ -149,7 +197,7 @@ export function createApi({
     const told = notes;
     const before = snapshots ? await snapshots.take() : null;
     const look = camera && job.view;
-    const beforeShot = look ? await camera.shoot(shotOf(job.view, 'before')) : null;
+    const beforeShot = look ? await camera.shoot(shotOf(job.view, 'before', !!job.goalStep)) : null;
     const attempt = (sessionId) =>
       run({
         projectDir,
@@ -177,7 +225,7 @@ export function createApi({
       // After a change, Claude looks at the page and can fix what it sees.
       if (look && result.files.length) {
         setStatus('Checking how it looks\u2026');
-        const afterShot = await camera.shoot(shotOf(job.view, 'after'));
+        const afterShot = await camera.shoot(shotOf(job.view, 'after', !!job.goalStep));
         if (afterShot) {
           try {
             const check = await run({
@@ -214,20 +262,104 @@ export function createApi({
       steps = [];
       state.log(job.text, result.reply, result.files);
       onActivity({ type: 'reply', text: result.reply, files: result.files });
+      return { ok: true, change };
     } catch (err) {
       onActivity({ type: 'error', detail: String(err?.message ?? err) });
       steps = [];
       add('error', FAILED_TEXT);
       state.log(job.text, `(failed: ${err?.message ?? err})`, []);
+      return { ok: false };
     }
+  }
+
+  // Claude reads the page and the code and proposes steps; nothing changes yet.
+  async function runPlan() {
+    const look = camera && goal.view;
+    const shot = look ? await camera.shoot(shotOf(goal.view, 'before', true)) : null;
+    try {
+      const result = await run({
+        projectDir,
+        text: planPrompt(goal.text),
+        readOnly: true,
+        sessionId: state.session(),
+        screenshot: shot ?? undefined,
+        shotsDir: look ? camera.dir : undefined,
+        onStatus: (text) => setStatus(text === 'Thinking\u2026' ? 'Planning\u2026' : text),
+        onStep: () => {},
+        owner,
+      });
+      if (result.sessionId) state.setSession(result.sessionId);
+      const plan = parsePlan(result.reply);
+      if (!plan.length) {
+        Object.assign(goal, { status: 'failed', error: result.reply.trim().slice(0, 300) });
+      } else {
+        goal.steps = plan.map((text) => ({ id: crypto.randomUUID(), text, status: 'todo' }));
+        goal.status = 'review';
+        goalNews('planned');
+      }
+    } catch (err) {
+      Object.assign(goal, { status: 'failed', error: 'Planning did not work. Try again.' });
+      onActivity({ type: 'error', detail: String(err?.message ?? err) });
+    }
+    saveGoal();
+  }
+
+  // The next step of a running goal, ready to run, or null. Finishes the goal
+  // when every step is done.
+  function nextGoalJob() {
+    if (goal?.status !== 'running') return null;
+    const index = goal.steps.findIndex((s) => s.status === 'todo' || s.status === 'failed');
+    if (index === -1) {
+      goal.status = 'done';
+      add('note', 'Goal done \u2713');
+      goalNews('done');
+      saveGoal();
+      return null;
+    }
+    const step = goal.steps[index];
+    const total = goal.steps.length;
+    goalNews('step', { step: step.text, number: index + 1 });
+    step.status = 'doing';
+    saveGoal();
+    add('note', `Step ${index + 1} of ${total} \u00b7 ${step.text}`);
+    return {
+      goalStep: step.id,
+      text: `Working toward the goal "${goal.text}", step ${index + 1} of ${total}: ${step.text}. Make only this step's change.`,
+      view: goal.view,
+    };
+  }
+
+  function finishStep(id, outcome) {
+    const step = goal?.steps.find((s) => s.id === id);
+    if (!step) return;
+    if (outcome.ok) {
+      step.status = 'done';
+      if (outcome.change) step.change = outcome.change;
+    } else {
+      step.status = 'failed';
+      if (goal.status === 'running') goal.status = 'paused';
+    }
+    saveGoal();
   }
 
   async function drain() {
     if (working) return;
     working = true;
-    while (queue.length) {
+    for (;;) {
+      // Her own messages first; when there are none, the goal's next step.
+      if (!queue.length) {
+        const next = nextGoalJob();
+        if (!next) break;
+        queue.push(next);
+      }
+      const job = queue.shift();
       setStatus('Thinking…');
-      await runJob(queue.shift());
+      if (job.plan) {
+        await runPlan();
+        continue;
+      }
+      const outcome = await runJob(job);
+      if (job.goalStep) finishStep(job.goalStep, outcome);
     }
     working = false;
     setStatus('');
@@ -285,6 +417,71 @@ export function createApi({
     }
   }
 
+  async function goalRoute(action, req, res) {
+    const raw = await readBody(req);
+    if (raw === null) return json(res, 413, { error: 'too large' });
+    let body = {};
+    try {
+      body = raw ? JSON.parse(raw) : {};
+    } catch {
+      return json(res, 400, { error: 'bad request' });
+    }
+    const state_ = goal?.status;
+    if (action === 'goal') {
+      const text = typeof body?.text === 'string' ? body.text.trim() : '';
+      if (!text || text.length > MAX_GOAL) return json(res, 400, { error: 'bad goal' });
+      if (goal && !['done', 'stopped', 'failed'].includes(state_)) return json(res, 409, { error: 'busy' });
+      goal = { id: crypto.randomUUID(), text, status: 'planning', steps: [], view: cleanView(body.view) };
+      saveGoal();
+      add('note', `Goal: ${text}`);
+      queue.push({ plan: true });
+      json(res, 202, { id: goal.id });
+      return drain();
+    }
+    if (action === 'start') {
+      if (state_ !== 'review') return json(res, 409, { error: 'not ready' });
+      const list = Array.isArray(body?.steps) ? body.steps : null;
+      const texts = list?.map((t) => (typeof t === 'string' ? t.trim().slice(0, MAX_STEP_TEXT) : '')).filter(Boolean);
+      if (!texts?.length || texts.length !== list.length || texts.length > MAX_GOAL_STEPS) return json(res, 400, { error: 'bad steps' });
+      goal.steps = texts.map((text) => ({ id: crypto.randomUUID(), text, status: 'todo' }));
+      goal.status = 'running';
+      saveGoal();
+      json(res, 200, { ok: true });
+      return drain();
+    }
+    if (action === 'pause') {
+      if (state_ !== 'running') return json(res, 409, { error: 'not running' });
+      goal.status = 'paused';
+      saveGoal();
+      return json(res, 200, { ok: true });
+    }
+    if (action === 'resume') {
+      if (state_ !== 'paused') return json(res, 409, { error: 'not paused' });
+      goal.status = 'running';
+      saveGoal();
+      json(res, 200, { ok: true });
+      return drain();
+    }
+    if (action === 'stop') {
+      if (!['running', 'paused', 'review'].includes(state_)) return json(res, 409, { error: 'nothing to stop' });
+      goal.status = 'stopped';
+      for (const s of goal.steps) if (s.status === 'todo' || s.status === 'failed') s.status = 'skipped';
+      for (let i = queue.length - 1; i >= 0; i--) if (queue[i].goalStep) queue.splice(i, 1);
+      goalNews('stopped');
+      saveGoal();
+      add('note', 'Goal stopped');
+      return json(res, 200, { ok: true });
+    }
+    if (action === 'clear') {
+      if (goal && ['running', 'planning'].includes(state_)) return json(res, 409, { error: 'busy' });
+      if (goal?.steps.some((s) => s.status === 'doing')) return json(res, 409, { error: 'busy' });
+      goal = null;
+      saveGoal();
+      return json(res, 200, { ok: true });
+    }
+    return json(res, 404, { error: 'not found' });
+  }
+
   function events(req, res) {
     res.writeHead(200, {
       'content-type': 'text/event-stream',
@@ -295,6 +492,7 @@ export function createApi({
     res.write(`event: history\ndata: ${JSON.stringify(state.history())}\n\n`);
     res.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
     if (steps.length) res.write(`event: steps\ndata: ${JSON.stringify(steps)}\n\n`);
+    res.write(`event: goal\ndata: ${JSON.stringify(goal)}\n\n`);
     listeners.add(res);
     const ping = setInterval(() => res.write(': ping\n\n'), 25000);
     req.on('close', () => {
@@ -312,7 +510,7 @@ export function createApi({
     const history = state.history();
     const asked = Number(new URL(req.url, 'http://x').searchParams.get('after'));
     const after = Number.isInteger(asked) && asked >= 0 && asked <= history.length ? asked : 0;
-    json(res, 200, { total: history.length, after, entries: history.slice(after), status, steps });
+    json(res, 200, { total: history.length, after, entries: history.slice(after), status, steps, goal });
   }
 
   return function handleApi(req, res) {
@@ -326,6 +524,8 @@ export function createApi({
     if (req.method === 'GET' && route === '/__bubble/poll') return poll(req, res);
     if (req.method === 'POST' && route === '/__bubble/send') return send(req, res);
     if (req.method === 'POST' && route === '/__bubble/undo' && snapshots) return undo(req, res);
+    const goalAction = /^\/__bubble\/goal(?:\/(start|pause|resume|stop|clear))?$/.exec(route);
+    if (req.method === 'POST' && goalAction) return goalRoute(goalAction[1] ?? 'goal', req, res);
     json(res, 404, { error: 'not found' });
   };
 }

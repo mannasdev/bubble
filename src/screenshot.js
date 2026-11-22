@@ -34,6 +34,7 @@ export function findChrome() {
 
 const MAX_W = 1600;
 const MAX_H = 1400;
+const WHOLE_H = 2200;
 
 /**
  * Takes screenshots of http://localhost:<targetPort><path>. Chrome is started
@@ -119,7 +120,7 @@ export function createCamera({ targetPort, dir, chromePath = findChrome(), timeo
     return starting;
   }
 
-  async function shoot({ path: pagePath = '/', width = 1280, height = 800, clip, name = 'shot' }) {
+  async function shoot({ path: pagePath = '/', width = 1280, height = 800, clip, whole = false, name = 'shot' }) {
     if (!chromePath) return null;
     let target = null;
     let b;
@@ -147,7 +148,16 @@ export function createCamera({ targetPort, dir, chromePath = findChrome(), timeo
       if (nav.errorText) return null;
       await loaded;
       await new Promise((r) => setTimeout(r, 400)); // fonts and late layout
-      const area = clip
+      let area;
+      if (whole) {
+        // The whole page in one picture, scaled down when it is long.
+        const { result } = await call('Runtime.evaluate', {
+          expression: 'Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)',
+          returnByValue: true,
+        });
+        const tall = Math.min(Math.max(Number(result?.value) || h, h), 12000);
+        area = { x: 0, y: 0, width: w, height: tall, scale: Math.min(1, WHOLE_H / tall) };
+      } else area = clip
         ? {
             x: Math.max(0, Math.round(clip.x)),
             y: Math.max(0, Math.round(clip.y)),

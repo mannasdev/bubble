@@ -293,3 +293,10 @@ test('reading a screenshot is reported as looking at the page', async () => {
   );
   assert.deepEqual(steps, [{ action: 'look' }, { action: 'read', file: 'index.html' }]);
 });
+
+test('a planning run can only look, never change files', async () => {
+  const r = run('ok', { readOnly: true });
+  await r.promise;
+  const argv = r.recorded().argv;
+  assert.equal(argv[argv.indexOf('--tools') + 1], 'Read,Glob,Grep');
+});

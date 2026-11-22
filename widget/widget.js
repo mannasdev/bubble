@@ -107,6 +107,60 @@
     '.hist .list,.hist .status,.hist .chip,.hist .form{display:none!important}',
     '.changes{display:none;flex:1;min-height:120px;overflow-y:auto;padding:12px;flex-direction:column;gap:8px}',
     '.hist .changes{display:flex}',
+    // The goal: a plan she approves, then a progress bar while Claude works through it.
+    '.goalv .list,.goalv .status,.goalv .chip,.goalv .form,.goalv .changes{display:none!important}',
+    '.gview{display:none;flex:1;min-height:180px;overflow-y:auto;padding:14px;flex-direction:column;gap:11px}',
+    '.goalv .gview{display:flex}',
+    '.goalv .gbtn{background:var(--accent-soft);color:var(--accent)}',
+    '.gtitle{font-weight:650;font-size:15px;line-height:1.3;overflow-wrap:anywhere}',
+    '.ghint{font-size:12.5px;color:var(--muted)}',
+    '.gfield{width:100%;min-height:76px;resize:vertical;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--fg);font:inherit;padding:10px 12px;outline:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}',
+    '.gfield:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}',
+    '.gfield::placeholder{color:var(--muted)}',
+    '.gacts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}',
+    '.gprimary{padding:8px 14px;border-radius:11px;background:var(--accent);color:#fff;font-weight:650;font-size:13px;box-shadow:0 4px 14px var(--accent-line),inset 0 1px 0 rgba(255,255,255,.3);transition:transform .15s,opacity .15s}',
+    '.gprimary:hover{transform:translateY(-1px)}',
+    '.gprimary:disabled{opacity:.4;transform:none;cursor:default}',
+    '.gsecondary{padding:8px 12px;border-radius:11px;background:var(--btn);border:1px solid var(--btn-line);color:var(--fg);font-weight:600;font-size:13px;transition:background .15s}',
+    '.gsecondary:hover{background:var(--btn-hover)}',
+    '.gsecondary.danger{color:var(--err)}',
+    '.gprog{display:flex;flex-direction:column;gap:7px}',
+    '.gbar{position:relative;height:10px;border-radius:6px;background:var(--mine);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.14)}',
+    '.gfill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,var(--accent),#9b6dff);box-shadow:0 0 12px var(--accent-line);transition:width .9s ' + EASE + ';overflow:hidden}',
+    '.gprog.running .gfill::after,.gstrip.running .gfill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.5),rgba(255,255,255,0));background-size:45% 100%;background-repeat:no-repeat;animation:sweep 1.7s linear infinite}',
+    '@keyframes sweep{from{background-position:-60% 0}to{background-position:170% 0}}',
+    '.gcount{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}',
+    '.gcount b{color:var(--fg);font-size:15px}',
+    '.gcount span:first-child{flex:none;white-space:nowrap}',
+    '.gcount span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.gsteps{display:flex;flex-direction:column;gap:6px}',
+    '.gstep{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:11px;background:var(--mine);font-size:13px;line-height:1.3;animation:rise .3s ' + EASE + ' both}',
+    '.gstep .mark{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:700;border:1.5px solid var(--muted);color:var(--muted)}',
+    '.gstep.done .mark{background:#2bb673;border-color:#2bb673;color:#fff}',
+    '.gstep.doing{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}',
+    '.gstep.doing .mark{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}',
+    '.gstep.failed .mark{background:var(--err);border-color:var(--err);color:#fff}',
+    '.gstep.skipped{opacity:.5}',
+    '.gstep.skipped .gtext{text-decoration:line-through}',
+    '.gtext{flex:1;min-width:0;overflow-wrap:anywhere}',
+    '.gstep textarea{flex:1;min-width:0;border:0;background:none;color:var(--fg);font:inherit;line-height:1.3;outline:0;padding:0;resize:none;overflow:hidden;height:17px}',
+    '.gstep.edit{align-items:flex-start}',
+    '.gstep.edit .mark{margin-top:-1px}',
+    '.gstep.still{animation:none}',
+    '.gstep .rm{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:var(--muted);transition:background .15s,color .15s}',
+    '.gstep .rm:hover{background:var(--btn-hover);color:var(--err)}',
+    '.gadd{width:100%;border:1px dashed var(--btn-line);border-radius:11px;background:none;color:var(--fg);font:inherit;font-size:13px;padding:8px 10px;outline:0}',
+    '.gadd:focus{border-style:solid;border-color:var(--accent)}',
+    '.gerr{font-size:13px;padding:10px 12px;border-radius:11px;background:var(--err-soft);border:1px solid var(--err);color:var(--fg);overflow-wrap:anywhere}',
+    '.gwait{display:flex;align-items:center;gap:9px;font-size:13px}',
+    '.gstrip{display:flex;flex-direction:column;gap:6px;padding:9px 14px 10px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}',
+    '.gstrip:hover{background:var(--mine)}',
+    '.gstrip .gbar{height:6px}',
+    '.gstrip .gcount{font-size:12px}',
+    '.gstrip .gcount b{font-size:12.5px}',
+    '.goalv .gstrip,.hist .gstrip{display:none!important}',
+    '.gline{position:absolute;left:16px;right:16px;bottom:6px;height:3px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}',
+    '.gline i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:linear-gradient(90deg,#8fb0ff,#c3a2ff);transition:width .9s ' + EASE + '}',
     '.crow{padding:10px 12px;border-radius:14px;background:var(--mine);display:flex;flex-direction:column;gap:3px;animation:rise .32s ' + EASE + ' both}',
     '.crow.undone{opacity:.55}',
     '.creq{font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
@@ -206,6 +260,7 @@
     down: 'M6 9l6 6 6-6',
     undo: 'M3 7v6h6M3 13a9 9 0 1 0 2.6-6.4L3 9',
     history: 'M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5M3.5 3.5v5h5',
+    flag: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM12 12.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z',
   };
 
   // Icons are built node by node, like everything else here: no markup strings.
@@ -496,8 +551,19 @@
   histBtn.setAttribute('title', 'Changes');
   histBtn.append(icon('history', 16));
   var title = el('span', 'title', 'Ask for a change');
-  head.append(el('span', 'live'), title, histBtn, close);
+  var goalBtn = el('button', 'hbtn gbtn');
+  goalBtn.setAttribute('aria-label', 'Goal');
+  goalBtn.setAttribute('title', 'Goal');
+  goalBtn.append(icon('flag', 16));
+  head.append(el('span', 'live'), title, goalBtn, histBtn, close);
   var changesView = el('div', 'changes');
+  var goalView = el('div', 'gview');
+  var strip = el('div', 'gstrip');
+  strip.hidden = true;
+  var gline = el('span', 'gline');
+  var glineFill = el('i');
+  gline.append(glineFill);
+  gline.hidden = true;
   var list = el('div', 'list');
   var empty = el('div', 'empty');
   var emptyRing = el('div', 'ring');
@@ -550,7 +616,7 @@
   row.append(tools, sendBtn);
   composer.append(input, row);
   form.append(composer);
-  panel.append(head, list, changesView, statusLine, replyChip, chip, form);
+  panel.append(head, strip, list, changesView, goalView, statusLine, replyChip, chip, form);
   var outline = el('div', 'outline');
   var outlineLabel = el('b');
   outline.append(outlineLabel);
@@ -566,6 +632,7 @@
   think.append(el('div', 'puff p1'), el('div', 'puff p2'), cloud);
   cursor.append(el('div', 'halo'), ping, arrow, think);
   var trail = el('canvas', 'trail');
+  toggle.append(gline);
   wrap.append(toggle, panel);
   root.append(wrap, outline, flashBox, trail, cursor);
   document.documentElement.appendChild(host);
@@ -1087,10 +1154,305 @@
   }
 
   function setChangesOpen(open) {
+    if (open && showingGoal) setGoalOpen(false);
     showingChanges = open;
     panel.classList.toggle('hist', open);
     title.textContent = open ? 'Changes' : 'Ask for a change';
     if (open) renderChanges();
+  }
+
+  // ---- The goal ----
+  var goalState = null; // as the server last described it
+  var showingGoal = false;
+  var goalShown = ''; // which goal and status the view was last built for
+  var draftSteps = null; // her edits to the plan before she starts it
+  var goalProblem = '';
+
+  function setGoalOpen(open) {
+    if (open && showingChanges) setChangesOpen(false);
+    showingGoal = open;
+    panel.classList.toggle('goalv', open);
+    try {
+      window.sessionStorage.setItem('bubble_goalview', open ? '1' : '0');
+    } catch (e) {}
+    title.textContent = open ? 'Goal' : 'Ask for a change';
+    goalShown = '';
+    if (open) renderGoal();
+  }
+
+  function doneOf(g) {
+    return g.steps.filter(function (s) {
+      return s.status === 'done';
+    }).length;
+  }
+
+  function progressBox(g, cls) {
+    var done = doneOf(g);
+    var total = g.steps.length || 1;
+    var box = el('div', cls + (g.status === 'running' ? ' running' : ''));
+    var count = el('div', 'gcount');
+    var left = el('span');
+    left.append(el('b', '', String(done)), document.createTextNode(' of ' + g.steps.length + ' done'));
+    var current = g.steps.filter(function (s) {
+      return s.status === 'doing';
+    })[0];
+    var right = {
+      running: current ? current.text : 'Working\u2026',
+      paused: 'Paused',
+      done: 'Done \u2713',
+      stopped: 'Stopped',
+    }[g.status] || '';
+    count.append(left, el('span', '', right));
+    var bar = el('div', 'gbar');
+    var fill = el('div', 'gfill');
+    fill.style.width = Math.round((done / total) * 100) + '%';
+    bar.append(fill);
+    box.append(count, bar);
+    return box;
+  }
+
+  function goalCall(action, body) {
+    goalProblem = '';
+    return window
+      .fetch('/__bubble/goal' + (action ? '/' + action : ''), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body || {}),
+      })
+      .then(
+        function (res) {
+          if (!res.ok) {
+            goalProblem = res.status === 409 ? 'Wait until Claude has finished, then try again.' : "That didn't work. Try again.";
+            goalShown = '';
+            renderGoal();
+          }
+          return res.ok;
+        },
+        function () {
+          goalProblem = "That didn't go through. Check your connection and try again.";
+          goalShown = '';
+          renderGoal();
+          return false;
+        },
+      );
+  }
+
+  function stepRow(step, i, editable) {
+    var row = el('div', 'gstep ' + (step.status || 'todo'));
+    row.style.animationDelay = Math.min(i, 8) * 40 + 'ms';
+    var mark = el('span', 'mark', step.status === 'done' ? '\u2713' : step.status === 'failed' ? '!' : step.status === 'doing' ? '' : String(i + 1));
+    row.append(mark);
+    if (editable) {
+      // Edits touch only this row, so nothing jumps or replays while she works.
+      row.classList.add('edit');
+      var place = function () {
+        return Array.prototype.indexOf.call(row.parentElement ? row.parentElement.children : [], row);
+      };
+      var field = el('textarea');
+      field.value = step.text;
+      field.setAttribute('rows', '1');
+      field.setAttribute('aria-label', 'Step ' + (i + 1));
+      var grow = function () {
+        field.style.height = 'auto';
+        field.style.height = field.scrollHeight + 'px';
+      };
+      field.addEventListener('input', function () {
+        draftSteps[place()] = field.value;
+        grow();
+      });
+      field.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') event.preventDefault();
+      });
+      window.setTimeout(grow, 0);
+      var rm = el('button', 'rm');
+      rm.setAttribute('aria-label', 'Remove this step');
+      rm.append(icon('close', 12));
+      rm.addEventListener('click', function () {
+        var holder = row.parentElement;
+        draftSteps.splice(place(), 1);
+        row.remove();
+        renumber(holder);
+      });
+      row.append(field, rm);
+    } else {
+      row.append(el('span', 'gtext', step.text));
+    }
+    return row;
+  }
+
+  function renumber(holder) {
+    if (!holder) return;
+    Array.prototype.forEach.call(holder.children, function (row, n) {
+      row.firstChild.textContent = String(n + 1);
+    });
+  }
+
+  function goalForm(prefill) {
+    goalView.append(
+      el('div', 'gtitle', 'Set a goal'),
+      el('div', 'ghint', 'Describe what this page should become. Claude plans the steps, you check them, then it works through them on its own.'),
+    );
+    var field = el('textarea', 'gfield');
+    field.setAttribute('placeholder', 'Make the homepage ready for launch\u2026');
+    field.setAttribute('aria-label', 'Your goal');
+    if (prefill) field.value = prefill;
+    var go = el('button', 'gprimary', 'Plan it');
+    go.disabled = !String(field.value).trim();
+    field.addEventListener('input', function () {
+      go.disabled = !String(field.value).trim();
+    });
+    go.addEventListener('click', function () {
+      var text = String(field.value || '').trim();
+      if (!text) return;
+      go.disabled = true;
+      goalCall('', { text: text, view: currentView(null) });
+    });
+    var acts = el('div', 'gacts');
+    acts.append(go);
+    goalView.append(field, acts);
+    window.setTimeout(function () {
+      if (field.focus) field.focus();
+    }, 50);
+  }
+
+  function renderGoal() {
+    var g = goalState;
+    // The strip in the chat view and the line on the launcher.
+    var live = g && (g.status === 'running' || g.status === 'paused' || g.status === 'review' || g.status === 'planning');
+    strip.hidden = !live;
+    gline.hidden = !(g && (g.status === 'running' || g.status === 'paused'));
+    if (live) {
+      strip.replaceChildren();
+      if (g.status === 'planning' || g.status === 'review') {
+        var line = el('div', 'gcount');
+        line.append(el('span', '', g.status === 'planning' ? 'Planning your goal\u2026' : 'Your plan is ready. Review it'), el('span', '', '\u203a'));
+        strip.append(line);
+        strip.classList.remove('running');
+      } else {
+        var p = progressBox(g, 'gprog');
+        strip.append.apply(strip, Array.prototype.slice.call(p.children));
+        strip.classList.toggle('running', g.status === 'running');
+        glineFill.style.width = Math.round((doneOf(g) / (g.steps.length || 1)) * 100) + '%';
+      }
+    }
+    if (!showingGoal) return;
+
+    // Rebuild the view only when something she could be typing into would not be lost.
+    var key = g ? g.id + ':' + g.status + ':' + JSON.stringify(g.steps.map(function (s) { return s.status; })) : 'none';
+    if (key === goalShown && !(g && g.status === 'running')) return;
+    if (g && g.status === 'review' && goalShown.indexOf(g.id + ':review') === 0) return;
+    goalShown = key;
+    goalView.replaceChildren();
+    if (goalProblem) goalView.append(el('div', 'gerr', goalProblem));
+
+    if (!g) return goalForm('');
+    if (g.status === 'failed') {
+      goalView.append(el('div', 'gerr', g.error || 'Claude could not plan that.'));
+      return goalForm(g.text);
+    }
+    goalView.append(el('div', 'gtitle', g.text));
+
+    if (g.status === 'planning') {
+      var wait = el('div', 'gwait');
+      var dotsBox = el('span', 'dots');
+      dotsBox.append(el('i'), el('i'), el('i'));
+      wait.append(dotsBox, el('span', 'what', 'Claude is looking at the page and planning the steps\u2026'));
+      goalView.append(wait);
+      return;
+    }
+
+    if (g.status === 'review') {
+      if (!draftSteps) draftSteps = g.steps.map(function (s) { return s.text; });
+      goalView.append(el('div', 'ghint', 'Check the plan. Change, remove or add steps, then start. Each step becomes its own change you can undo.'));
+      var list_ = el('div', 'gsteps');
+      draftSteps.forEach(function (text, i) {
+        list_.append(stepRow({ text: text, status: 'todo' }, i, true));
+      });
+      var add = el('input', 'gadd');
+      add.setAttribute('placeholder', '+ Add a step');
+      add.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && String(add.value).trim()) {
+          draftSteps.push(String(add.value).trim());
+          var added = stepRow({ text: String(add.value).trim(), status: 'todo' }, draftSteps.length - 1, true);
+          list_.append(added);
+          add.value = '';
+        }
+      });
+      var start = el('button', 'gprimary', 'Start autopilot');
+      start.addEventListener('click', function () {
+        var steps = draftSteps.map(function (t) { return String(t).trim(); }).filter(Boolean);
+        if (!steps.length) return;
+        start.disabled = true;
+        goalCall('start', { steps: steps }).then(function (ok) {
+          if (ok) draftSteps = null;
+        });
+      });
+      var cancel = el('button', 'gsecondary', 'Cancel');
+      cancel.addEventListener('click', function () {
+        draftSteps = null;
+        goalCall('stop').then(function () {
+          goalCall('clear');
+        });
+      });
+      var acts = el('div', 'gacts');
+      acts.append(start, cancel);
+      goalView.append(list_, add, acts);
+      return;
+    }
+
+    // Running, paused, done or stopped: the progress bar and the steps.
+    draftSteps = null;
+    goalView.append(progressBox(g, 'gprog'));
+    var steps = el('div', 'gsteps');
+    g.steps.forEach(function (step, i) {
+      steps.append(stepRow(step, i, false));
+    });
+    goalView.append(steps);
+    var buttons = el('div', 'gacts');
+    if (g.status === 'running' || g.status === 'paused') {
+      var toggleRun = el('button', 'gprimary', g.status === 'running' ? 'Pause' : 'Resume');
+      toggleRun.addEventListener('click', function () {
+        toggleRun.disabled = true;
+        goalCall(g.status === 'running' ? 'pause' : 'resume');
+      });
+      var stop = el('button', 'gsecondary danger', 'Stop');
+      stop.addEventListener('click', function () {
+        stop.disabled = true;
+        goalCall('stop');
+      });
+      buttons.append(toggleRun, stop);
+      if (g.status === 'paused' && g.steps.some(function (s) { return s.status === 'failed'; })) {
+        goalView.append(el('div', 'ghint', 'A step did not work. Resume to try it again, or stop here.'));
+      }
+    } else {
+      var again = el('button', 'gprimary', 'New goal');
+      again.addEventListener('click', function () {
+        goalCall('clear');
+      });
+      buttons.append(again);
+    }
+    goalView.append(buttons);
+  }
+
+  function onGoal(g) {
+    var before = goalState;
+    goalState = g;
+    if (!g || !before || before.id !== g.id) draftSteps = null;
+    // Her plan is ready while she is looking elsewhere: show it.
+    if (g && g.status === 'review' && (!before || before.status !== 'review') && isOpen && !showingGoal) setGoalOpen(true);
+    renderGoal();
+  }
+
+  // Where she is on the page, so Claude can be shown a screenshot of it.
+  function currentView(focus) {
+    return {
+      path: window.location.pathname + window.location.search,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: window.scrollX || 0,
+      scrollY: window.scrollY || 0,
+      focus: focus,
+    };
   }
 
   function placeBox(node, b) {
@@ -1263,15 +1625,7 @@
     var body = { text: text };
     if (pointed) body.pointed = pointed;
     if (replyTo) body.replyTo = replyTo;
-    // Where she is on the page, so Claude can be shown a screenshot of it.
-    body.view = {
-      path: window.location.pathname + window.location.search,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      scrollX: window.scrollX || 0,
-      scrollY: window.scrollY || 0,
-      focus: pointedFocus,
-    };
+    body.view = currentView(pointedFocus);
     sendBtn.disabled = true;
     restart(sendBtn, 'sent');
     // Set before sending: the "working" signal can arrive before the reply.
@@ -1385,6 +1739,12 @@
   });
   histBtn.addEventListener('click', function () {
     setChangesOpen(!showingChanges);
+  });
+  goalBtn.addEventListener('click', function () {
+    setGoalOpen(!showingGoal);
+  });
+  strip.addEventListener('click', function () {
+    setGoalOpen(true);
   });
   chipClear.addEventListener('click', function () {
     setPointed(null);
@@ -1541,6 +1901,7 @@
   var known = -1; // how many entries asking has shown; -1 before the first answer
   var knownStatus = null;
   var knownSteps = 0;
+  var knownGoal = null;
   var STREAM_WAIT = 3000;
   var ASK_EVERY = 1500;
 
@@ -1583,6 +1944,13 @@
       onSteps(steps.slice());
       if (working && steps.length) setThought(thoughtFor(steps[steps.length - 1]));
     }
+    if ('goal' in news) {
+      var goalNews = JSON.stringify(news.goal);
+      if (goalNews !== knownGoal) {
+        knownGoal = goalNews;
+        onGoal(news.goal);
+      }
+    }
     var text = typeof news.status === 'string' ? news.status : '';
     if (text !== knownStatus) {
       knownStatus = text;
@@ -1624,6 +1992,7 @@
   source.addEventListener('step', heard(onStep));
   source.addEventListener('steps', heard(onSteps));
   source.addEventListener('status', heard(onStatus));
+  source.addEventListener('goal', heard(onGoal));
   var askedBefore = false;
   try {
     askedBefore = window.sessionStorage.getItem('bubble_ask') === '1';
@@ -1650,4 +2019,9 @@
     wasOpen = window.sessionStorage.getItem('bubble_open') === '1';
   } catch (e) {}
   setOpen(wasOpen);
+  var goalViewWasOpen = false;
+  try {
+    goalViewWasOpen = window.sessionStorage.getItem('bubble_goalview') === '1';
+  } catch (e) {}
+  if (goalViewWasOpen) setGoalOpen(true);
 })();

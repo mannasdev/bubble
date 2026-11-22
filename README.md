@@ -65,6 +65,22 @@ stays on the page (and scrolls with it) until the message is sent, and Claude
 is told where the box is, what sits inside it and the text inside it. Useful
 for "this whole area" or a spot that is not one element.
 
+## Goals on autopilot
+
+For something bigger than one change, use the target button in the panel's
+header and describe the outcome ("make the homepage ready for launch").
+Claude looks at the whole page and the code and proposes 3 to 8 steps. She
+can change, remove or add steps, then press Start autopilot: Claude works
+through them one by one, each as its own change with its own Undo, checking
+each against a screenshot of the whole page.
+
+Progress shows as a bar at the top of the panel, a thin line on the launcher
+when the panel is closed, and in your terminal. Pause lets the current step
+finish and then waits; Stop skips what is left. Her own messages still go
+first: they run before the next step. A step that fails pauses the goal, and
+Resume tries it again. After a restart a goal waits, paused, instead of
+carrying on by itself.
+
 ## Claude sees the page
 
 With each message, bubble takes a screenshot of what she is looking at (cropped

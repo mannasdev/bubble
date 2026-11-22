@@ -163,6 +163,7 @@ export function runClaude({
   onStatus,
   onStep,
   owner = false,
+  readOnly = false,
   claudeBin = 'claude',
   timeoutMs = 300000,
   lingerMs = 3000,
@@ -170,7 +171,7 @@ export function runClaude({
   const args = [
     '-p',
     '--restricted', '--safe-mode', '--strict-mcp-config',
-    '--tools', 'Read,Glob,Grep,Edit,Write',
+    '--tools', readOnly ? 'Read,Glob,Grep' : 'Read,Glob,Grep,Edit,Write',
     '--permission-mode', 'acceptEdits', '--permission-prompts', 'none',
     '--settings', SETTINGS_JSON,
     '--append-system-prompt', owner ? OWNER_PROMPT : SYSTEM_PROMPT,

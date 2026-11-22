@@ -218,7 +218,7 @@ test('a listener gets history first, then new entries in order, then an empty st
   assert.equal(events[0][0], 'history');
   assert.deepEqual(events[0][1].map((e) => e.text), ['earlier']);
   assert.deepEqual(events[1], ['status', '']);
-  const rest = events.slice(2).map(([n, d]) => (n === 'entry' ? `entry:${d.role}:${d.text}` : `status:${d}`));
+  const rest = events.filter(([n]) => n !== 'goal').slice(2).map(([n, d]) => (n === 'entry' ? `entry:${d.role}:${d.text}` : `status:${d}`));
   assert.deepEqual(rest, ['entry:visitor:now', 'status:Thinking…', 'status:Making the change…', 'entry:claude:done', 'status:']);
 });
 
@@ -522,7 +522,7 @@ test('a page that cannot listen can ask for the news instead', async (t) => {
   });
   t.after(a.close);
   const poll = async (after) => (await fetch(`${a.base}/__bubble/poll?after=${after}`)).json();
-  assert.deepEqual(await poll(0), { total: 0, after: 0, entries: [], status: '', steps: [] });
+  assert.deepEqual(await poll(0), { total: 0, after: 0, entries: [], status: '', steps: [], goal: null });
 
   await a.send({ text: 'make it big' });
   for (let i = 0; i < 200 && !release; i++) await sleep(5);
@@ -539,7 +539,7 @@ test('a page that cannot listen can ask for the news instead', async (t) => {
   assert.equal(done.after, 1);
   assert.deepEqual(done.entries.map((e) => [e.role, e.text]), [['claude', 'done']]);
   for (let i = 0; i < 200 && (await poll(2)).status; i++) await sleep(5);
-  assert.deepEqual(await poll(2), { total: 2, after: 2, entries: [], status: '', steps: [] });
+  assert.deepEqual(await poll(2), { total: 2, after: 2, entries: [], status: '', steps: [], goal: null });
 
   // A count the server does not recognise gets the whole conversation again.
   assert.equal((await poll(99)).after, 0);

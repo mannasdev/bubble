@@ -42,6 +42,17 @@ export function formatActivity(event, { now = new Date(), color = false, who = '
     }
     return lines.join('\n');
   }
+  if (event.type === 'goal') {
+    const bar = (done, total) => {
+      const full = total ? Math.round((done / total) * 10) : 0;
+      return paint('\u2588'.repeat(full), 'cyan') + paint('\u2591'.repeat(10 - full), 'dim') + ` ${done}/${total}`;
+    };
+    if (event.event === 'planned') return head('goal', ['cyan', 'bold'], `"${oneLine(event.text)}": planned ${event.total} steps`);
+    if (event.event === 'step') return head('goal', ['cyan', 'bold'], `${bar(event.done, event.total)}  step ${event.number}: ${oneLine(event.step)}`);
+    if (event.event === 'done') return head('goal', ['cyan', 'bold'], `${bar(event.done, event.total)}  done: "${oneLine(event.text)}"`);
+    if (event.event === 'stopped') return head('goal', ['cyan', 'bold'], `stopped at ${event.done}/${event.total}`);
+    return '';
+  }
   if (event.type === 'undo') return head('undo', ['red', 'bold'], `undid "${oneLine(event.text)}"`);
   if (event.type === 'reply') return head('claude', ['green', 'bold'], oneLine(event.text));
   if (event.type === 'error') return head('failed', ['red', 'bold'], oneLine(event.detail));

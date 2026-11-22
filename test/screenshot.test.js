@@ -61,3 +61,14 @@ test('the camera says where its screenshots go', () => {
   const camera = createCamera({ targetPort: 1, dir: '/tmp/x', chromePath: null });
   assert.equal(camera.dir, '/tmp/x');
 });
+
+test('a whole-page shot fits a long page into one image', { skip: !chrome && 'no Chrome here' }, async (t) => {
+  const port = await site(t);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bubble-shot-'));
+  const camera = createCamera({ targetPort: port, dir, chromePath: chrome });
+  t.after(() => camera.close());
+  const file = await camera.shoot({ path: '/', width: 800, height: 600, whole: true, name: 'page' });
+  const size = pngSize(file);
+  assert.equal(size.height, 2200); // a 3000px page, scaled down to fit
+  assert.ok(size.width > 560 && size.width < 600, String(size.width));
+});
